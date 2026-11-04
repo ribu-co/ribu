@@ -49,7 +49,9 @@ Una cuenta por rol: `mesero`, `cocina` y `admin`. Los correos y las claves no va
 Hay dos productos puestos a propósito:
 
 - **Mojarra frita:** tiene `stock: 2` para mostrar "agotado". El `stock` baja cuando el mesero confirma, no cuando el cliente pide. Al confirmar 2, queda en 0 y `disponible` pasa a `false`. Entre ensayos hay que devolverle el `stock`.
-- **Limonada de coco:** es el único precio con base inexacta. Sirve para probar el redondeo que `contratos/README.md` tiene por confirmar. Los demás tienen base exacta, así que la demo principal no depende de eso. No la uses en la demo hasta confirmarlo.
+- **Limonada de coco:** es el único precio con base inexacta. Sirve para probar el redondeo. En el sandbox, Factus ya validó una factura con `cash_rounding_amount` de `-0.01`, pero falta probar este precio desde la app. Los demás tienen base exacta, así que la demo principal no depende de eso. Úsala en la demo solo si ya pasó esa prueba.
+
+Factus Pay solo cobra desde $10.000. Las carimañolas, la arepa, el jugo, el agua, el enyucado y la cocada no alcanzan ese mínimo por sí solos, ni con 10 % de propina. Para pedirlos solos, hay que pagar en efectivo o con tarjeta.
 
 ## Pedido para la demo
 
