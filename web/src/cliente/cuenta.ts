@@ -1,8 +1,8 @@
 // Lo que la pantalla de la cuenta decide a partir de `Cuenta`. Los montos ya vienen calculados por
 // el backend con calcularTotales; aquí solo se elige qué mostrar.
 
-import { PROPINA_SUGERIDA_MAXIMA, propinaValida } from '../../../contratos/reglas'
-import type { Cuenta, EstadoFactura, EstadoPago, ResumenPago } from '../../../contratos/tipos'
+import { lineaSuma, MONTO_MINIMO_COBRO, PROPINA_SUGERIDA_MAXIMA, propinaValida, repartirPartesIguales, unidadesPorCubrir } from '../../../contratos/reglas'
+import type { Cuenta, EstadoFactura, EstadoPago, LineaPedido, ResumenPago } from '../../../contratos/tipos'
 
 export const cobrosActivos = (cuenta: Cuenta) => cuenta.pagos.filter((p) => p.estado === 'esperando_pago')
 
@@ -39,6 +39,71 @@ export const FACTURA_EN_CAMINO: Record<Exclude<EstadoFactura, 'emitida'>, string
 /** Los porcentajes que se ofrecen como botones. El 0 va aparte, como "Sin propina". */
 export const opcionesPropina = (sugeridas: readonly number[]) =>
   [...new Set(sugeridas)].filter((p) => p > 0 && p <= PROPINA_SUGERIDA_MAXIMA).sort((a, b) => a - b)
+
+// Dividir la cuenta
+
+export type EstadoParte = 'libre' | 'en_cobro' | 'pagada'
+
+export interface Parte {
+  numero: number
+  monto: number
+  estado: EstadoParte
+  /** El pago que la cubre o la está cobrando. */
+  pago: ResumenPago | null
+  mia: boolean
+}
+
+/**
+ * Cómo va cada parte de la división. `Cuenta.pagos` no dice de qué división es cada parte: si se
+ * dividió de nuevo, un pago solo cuenta para la parte con su mismo monto.
+ */
+export function partesDeDivision(cuenta: Cuenta, uid: string): Parte[] {
+  const division = cuenta.division
+  if (!division) return []
+  return division.montos.map((monto, i) => {
+    const numero = i + 1
+    const deLaParte = cuenta.pagos.filter(
+      (p) => p.parte === numero && p.subtotal === monto && p.incidencia === null && (p.estado === 'pagado' || p.estado === 'esperando_pago'),
+    )
+    const pago = deLaParte.find((p) => p.estado === 'pagado') ?? deLaParte.find((p) => p.estado === 'esperando_pago') ?? null
+    return {
+      numero,
+      monto,
+      estado: pago === null ? 'libre' : pago.estado === 'pagado' ? 'pagada' : 'en_cobro',
+      pago,
+      mia: pago?.creadoPor === uid,
+    }
+  })
+}
+
+/** Con todas sus partes pagadas, la división ya cumplió: lo que se pida después se paga aparte. */
+export const divisionTerminada = (partes: readonly Parte[]) => partes.length > 0 && partes.every((p) => p.estado === 'pagada')
+
+/** Lo que la web muestra antes de dividir. Los montos de verdad los calcula el backend. */
+export function vistaPreviaPartes(porPagar: number, partes: number) {
+  const montos = repartirPartesIguales(porPagar, partes)
+  return { montos, alcanza: Math.min(...montos) >= MONTO_MINIMO_COBRO }
+}
+
+/** El máximo de partes que deja a cada una en el mínimo de Factus Pay o más. */
+export const partesMaximas = (porPagar: number, tope: number) => Math.max(0, Math.min(tope, Math.floor(porPagar / MONTO_MINIMO_COBRO)))
+
+/** Las líneas que todavía se pueden elegir para pagar por productos. */
+export const lineasPorElegir = (cuenta: Cuenta) => cuenta.lineas.filter((l) => lineaSuma(l.estado) && unidadesPorCubrir(l) > 0)
+
+/** Unidades que ya cubre otro pago, para mostrarlas en la lista de productos. */
+export const unidadesCubiertas = (linea: LineaPedido) => (lineaSuma(linea.estado) ? linea.cantidadCubierta : 0)
+
+export type Eleccion = Record<string, number>
+
+/** Lo que suma la elección, con impuesto. Solo se muestra: el backend lo vuelve a calcular. */
+export const subtotalEleccion = (cuenta: Cuenta, eleccion: Eleccion) =>
+  cuenta.lineas.reduce((suma, l) => suma + l.precio * Math.min(eleccion[l.id] ?? 0, unidadesPorCubrir(l)), 0)
+
+export const itemsEleccion = (eleccion: Eleccion) =>
+  Object.entries(eleccion)
+    .filter(([, cantidad]) => cantidad > 0)
+    .map(([lineaId, cantidad]) => ({ lineaId, cantidad }))
 
 /** Lo que escribió en "Otro": un entero de 0 a 100, o null si todavía no es válido. */
 export function leerPorcentaje(texto: string): number | null {

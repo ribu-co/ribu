@@ -30,7 +30,7 @@ export function SeguimientoPago({
   restauranteId: string
   sesion: Sesion
   alVolver: () => void
-  alReintentar: () => void
+  alReintentar: (pago: Pago) => void
 }) {
   const fuente = usarFuente()
   const pago = usarLectura<Pago | null>((a, b) => fuente.escucharPago(restauranteId, pagoId, a, b), [fuente, restauranteId, pagoId])
@@ -54,7 +54,7 @@ export function DetallePago({
   restauranteId: string
   sesion: Sesion
   alVolver: () => void
-  alReintentar: () => void
+  alReintentar: (pago: Pago) => void
 }) {
   if (valor.estado === 'esperando_pago') return <VistaCobro token={token} pago={valor} />
   if (valor.estado === 'pagado' && valor.incidencia === 'pago_duplicado') {
@@ -80,7 +80,7 @@ export function DetallePago({
       titulo={valor.estado === 'vencido' ? 'El QR venció' : valor.estado === 'cancelado' ? 'Cancelaste el cobro' : 'El cobro falló'}
       alVolver={alVolver}
       accion={
-        <Boton ancho onClick={alReintentar}>
+        <Boton ancho onClick={() => alReintentar(valor)}>
           Generar otro cobro
         </Boton>
       }
