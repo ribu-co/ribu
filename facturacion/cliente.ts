@@ -7,6 +7,7 @@ import type {
   Impuesto,
   LineaFactura,
   MedioPago,
+  PdfFactura,
   ResultadoEmision,
   ServicioFacturacion,
   SolicitudFactura,
@@ -209,16 +210,54 @@ export async function validarEnRango(
   }
 }
 
-export function crearFacturacionFactus(config: ConfigFactus): Pick<ServicioFacturacion, 'emitirFactura'> {
+/** Dónde vive cada tipo de documento en Factus. */
+export const RUTA_DOCUMENTO: Record<Rango, string> = {
+  factura: '/v2/bills',
+  credito: '/v2/credit-notes',
+  debito: '/v2/debit-notes',
+}
+
+const segmento = (valor: string) => encodeURIComponent(valor)
+
+/** Solo para documentos rechazados: uno en validación nunca se elimina. */
+export async function eliminarDocumento(conexion: ConexionFactus, rango: Rango, referencia: string) {
+  await conexion.pedir('DELETE', `${RUTA_DOCUMENTO[rango]}/destroy/reference/${segmento(referencia)}`)
+}
+
+/** Factus devuelve el PDF en base64 en `pdf_base_64_encoded`. */
+export async function descargarPdfDocumento(conexion: ConexionFactus, rango: Rango, numero: string): Promise<PdfFactura> {
+  const respuesta = await conexion.pedir<{ data?: { file_name?: string | null; pdf_base_64_encoded?: string | null } }>(
+    'GET',
+    `${RUTA_DOCUMENTO[rango]}/${segmento(numero)}/download-pdf`,
+  )
+  const base64 = respuesta?.data?.pdf_base_64_encoded
+  if (!base64) throw new ErrorIntegracion('Factus respondió el PDF sin pdf_base_64_encoded', 'factus', 'servidor')
+  const nombre = respuesta.data?.file_name || numero
+  return { nombreArchivo: /\.pdf$/i.test(nombre) ? nombre : `${nombre}.pdf`, base64 }
+}
+
+export async function enviarCorreoDocumento(conexion: ConexionFactus, rango: Rango, numero: string, correo: string) {
+  await conexion.pedir('POST', `${RUTA_DOCUMENTO[rango]}/${segmento(numero)}/send-email`, { cuerpo: { email: correo } })
+}
+
+export type FacturacionFactus = Pick<
+  ServicioFacturacion,
+  'emitirFactura' | 'eliminarFactura' | 'descargarPdf' | 'enviarCorreo'
+>
+
+export function crearFacturacionFactus(config: ConfigFactus): FacturacionFactus {
   const conexion = crearConexionFactus(config)
 
   return {
     async emitirFactura(solicitud) {
       validarSolicitud(solicitud)
-      const documento = await validarEnRango(conexion, 'factura', '/v2/bills/validate', (rangoId) =>
+      const documento = await validarEnRango(conexion, 'factura', `${RUTA_DOCUMENTO.factura}/validate`, (rangoId) =>
         cuerpoFactura(solicitud, rangoId),
       )
       return interpretarEmision(documento, datosFactura)
     },
+    eliminarFactura: (referencia) => eliminarDocumento(conexion, 'factura', referencia),
+    descargarPdf: (numero) => descargarPdfDocumento(conexion, 'factura', numero),
+    enviarCorreo: (numero, correo) => enviarCorreoDocumento(conexion, 'factura', numero, correo),
   }
 }

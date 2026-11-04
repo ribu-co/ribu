@@ -221,3 +221,53 @@ test('si Factus no acepta el rango guardado, la siguiente emisión lo consulta o
   await facturacion.emitirFactura(solicitudDePrueba())
   expect(llamadas.filter((l) => l.url.pathname === '/v2/numbering-ranges')).toHaveLength(2)
 })
+
+test('elimina una factura rechazada por su referencia', async () => {
+  const { facturacion, llamadas } = preparar(() => json({ status: 'OK', message: 'Documento eliminado' }))
+  await facturacion.eliminarFactura('pago 1/a')
+  const [llamada] = llamadas.filter((l) => l.metodo === 'DELETE')
+  expect(llamada.url.pathname).toBe('/v2/bills/destroy/reference/pago%201%2Fa')
+  expect(llamada.headers.get('Authorization')).toBe('Bearer acceso')
+})
+
+test('si Factus no deja eliminar, el error llega como tal', async () => {
+  const { facturacion } = preparar(() => json({ message: 'La factura ya fue validada' }, 422))
+  await expect(facturacion.eliminarFactura('pago-1')).rejects.toMatchObject({ tipo: 'validacion', status: 422 })
+})
+
+test('descarga el PDF en base64 con su nombre de archivo', async () => {
+  const { facturacion, llamadas } = preparar(() =>
+    json({ data: { file_name: 'FES-SETP990000203', pdf_base_64_encoded: 'JVBERi0x' } }),
+  )
+  expect(await facturacion.descargarPdf('SETP990000203')).toEqual({
+    nombreArchivo: 'FES-SETP990000203.pdf',
+    base64: 'JVBERi0x',
+  })
+  expect(llamadas.at(-1)).toMatchObject({ metodo: 'GET' })
+  expect(llamadas.at(-1)!.url.pathname).toBe('/v2/bills/SETP990000203/download-pdf')
+})
+
+test('sin nombre de archivo, el PDF se llama como la factura', async () => {
+  const { facturacion } = preparar(() => json({ data: { pdf_base_64_encoded: 'JVBERi0x' } }))
+  expect((await facturacion.descargarPdf('SETP1')).nombreArchivo).toBe('SETP1.pdf')
+})
+
+test('un PDF vacío es un fallo de Factus que se reintenta', async () => {
+  const { facturacion } = preparar(() => json({ data: {} }))
+  await expect(facturacion.descargarPdf('SETP1')).rejects.toMatchObject({ tipo: 'servidor', reintentable: true })
+})
+
+test('envía la factura al correo que se pida', async () => {
+  const { facturacion, llamadas } = preparar(() => json({ status: 'OK', message: 'Correo enviado' }))
+  await facturacion.enviarCorreo('SETP990000203', 'cliente@ejemplo.com')
+  const llamada = llamadas.at(-1)!
+  expect(llamada.metodo).toBe('POST')
+  expect(llamada.url.pathname).toBe('/v2/bills/SETP990000203/send-email')
+  expect(JSON.parse(llamada.cuerpo!)).toEqual({ email: 'cliente@ejemplo.com' })
+})
+
+test('una factura que no existe falla al pedir su PDF o su correo', async () => {
+  const { facturacion } = preparar(() => json({ message: 'No encontrado' }, 404))
+  await expect(facturacion.descargarPdf('SETP0')).rejects.toMatchObject({ tipo: 'validacion', status: 404 })
+  await expect(facturacion.enviarCorreo('SETP0', 'a@ejemplo.com')).rejects.toMatchObject({ status: 404 })
+})
