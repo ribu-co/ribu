@@ -202,16 +202,17 @@ async function guardarEmitido(ctx: Contexto, clave: ClaveDocumento, reserva: Res
 /** 409 o 429 no se muestran como error: el documento sigue igual y se reintenta. Un 422 espera al personal. */
 async function registrarFalloDeEmision(ctx: Contexto, clave: ClaveDocumento, reserva: Reserva, error: unknown) {
   const { documento, marca } = reserva
-  if (error instanceof ErrorIntegracion && error.reintentable) {
-    console.warn('Factus no pudo emitir; se reintenta', clave.tipo, clave.id, error.tipo, error.status ?? '')
-    const espera = esperaDeReintento(documento.intentos, error.esperarSegundos)
+  if (!(error instanceof ErrorIntegracion) || error.reintentable) {
+    const motivo = error instanceof ErrorIntegracion ? `${error.tipo} ${error.status ?? ''}` : error instanceof Error ? error.name : 'desconocido'
+    console.warn('Factus no pudo emitir; se reintenta', clave.tipo, clave.id, motivo)
+    const espera = esperaDeReintento(documento.intentos, error instanceof ErrorIntegracion ? error.esperarSegundos : 0)
     await cerrar(ctx, clave, marca, {
       cambios: { ultimoError: 'Factus no respondió; se reintenta sola' },
       reintentarEn: iso(sumarSegundos(ctx.ahora(), espera)),
     })
     return
   }
-  if (error instanceof ErrorIntegracion && error.tipo === 'no_autorizado') {
+  if (error.tipo === 'no_autorizado') {
     // Las credenciales no son culpa de los datos: rechazarla mandaría al personal a corregir lo que está bien.
     console.error('Factus rechazó las credenciales', clave.tipo, clave.id)
     await cerrar(ctx, clave, marca, {
@@ -220,11 +221,9 @@ async function registrarFalloDeEmision(ctx: Contexto, clave: ClaveDocumento, res
     })
     return
   }
-  const mensaje = error instanceof ErrorIntegracion ? error.message : 'No se pudo emitir'
-  if (!(error instanceof ErrorIntegracion)) console.error('Error al emitir', clave.tipo, clave.id, error)
   if (!estadoPosible(documento.estado, 'rechazada')) return
   // Factus no lo aceptó, así que no hay nada que eliminar: espera la corrección del personal.
-  await cerrar(ctx, clave, marca, { cambios: { estado: 'rechazada', ultimoError: mensaje } })
+  await cerrar(ctx, clave, marca, { cambios: { estado: 'rechazada', ultimoError: error.message } })
 }
 
 async function eliminarRechazado(ctx: Contexto, clave: ClaveDocumento, reserva: Reserva, mensaje: string) {
@@ -262,6 +261,14 @@ async function resolverYaValidada(ctx: Contexto, clave: ClaveDocumento, reserva:
     const resultado = await llamarEmision(ctx, clave, reserva)
     if (resultado.estado === 'emitida') {
       await guardarEmitido(ctx, clave, reserva, resultado.datos)
+      return
+    }
+    if (resultado.estado === 'en_validacion') {
+      await cerrar(ctx, clave, marca, {
+        cambios: { estado: 'en_validacion', ultimoError: resultado.detalle },
+        pendienteEliminar: false,
+        reintentarEn: iso(sumarSegundos(ctx.ahora(), esperaDeReintento(documento.intentos))),
+      })
       return
     }
   } catch (error) {

@@ -20,6 +20,9 @@ import { barrer } from './programado'
 import { aPeticionWeb, enviarRespuesta } from './puente'
 import { recibirWebhook } from './webhook'
 
+// Al cargar, no al usarse: los disparadores de Firestore ya necesitan la app para leer el evento.
+if (getApps().length === 0) initializeApp()
+
 const REGION = 'us-central1'
 const USER_AGENT = 'ribu'
 /** El webhook debe contestar en menos de 10 segundos: esta consulta deja tiempo para la transacción. */
@@ -49,7 +52,6 @@ let contextoCreado: Contexto | undefined
 
 function contexto(): Contexto {
   if (contextoCreado) return contextoCreado
-  if (getApps().length === 0) initializeApp()
   const firestore = getFirestore()
   firestore.settings({ ignoreUndefinedProperties: true })
   const db = crearBaseFirestore(firestore)
@@ -87,7 +89,7 @@ let apiCreada: ReturnType<typeof crearApi> | undefined
 function aplicacion() {
   apiCreada ??= crearApi(contexto(), {
     claveSemilla: () => (process.env.FUNCTIONS_EMULATOR === 'true' ? CLAVE_SEMILLA_EMULADOR : SEMILLA_CLAVE.value()),
-    origenWeb: () => process.env.RIBU_URL_WEB ?? `https://${process.env.GCLOUD_PROJECT}.web.app`,
+    origenWeb: () => process.env.RIBU_URL_WEB ?? `https://${process.env.GCLOUD_PROJECT ?? 'ribu-co'}.web.app`,
     ...(usarMocks()
       ? {
           simularPago: async (ctx: Contexto, referencia: string) => {

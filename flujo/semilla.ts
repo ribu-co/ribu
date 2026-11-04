@@ -59,10 +59,12 @@ export interface SolicitudSemilla {
   claves: Record<RolSemilla, string>
   /** Devuelve el stock y libera las mesas. Sirve entre ensayos. Los tokens tampoco cambian. */
   reiniciarDemo: boolean
+  /** Cambiar una clave cierra las sesiones abiertas de esa cuenta: por eso no pasa si no se pide. */
+  actualizarClaves: boolean
 }
 
 export function leerSolicitudSemilla(cuerpo: unknown): SolicitudSemilla {
-  const crudo = (cuerpo ?? {}) as { claves?: Record<string, unknown>; reiniciarDemo?: unknown }
+  const crudo = (cuerpo ?? {}) as { claves?: Record<string, unknown>; reiniciarDemo?: unknown; actualizarClaves?: unknown }
   const claves = crudo.claves ?? {}
   for (const rol of ROLES_SEMILLA) {
     const clave = claves[rol]
@@ -70,7 +72,11 @@ export function leerSolicitudSemilla(cuerpo: unknown): SolicitudSemilla {
       fallar('CUERPO_INVALIDO', `Falta la clave de ${rol}, con al menos ${CLAVE_MINIMA} caracteres`)
     }
   }
-  return { claves: claves as Record<RolSemilla, string>, reiniciarDemo: crudo.reiniciarDemo === true }
+  return {
+    claves: claves as Record<RolSemilla, string>,
+    reiniciarDemo: crudo.reiniciarDemo === true,
+    actualizarClaves: crudo.actualizarClaves === true,
+  }
 }
 
 export interface ResultadoSemilla {
@@ -79,12 +85,12 @@ export interface ResultadoSemilla {
   mesas: { numero: number; token: string; link: string }[]
 }
 
-async function asegurarCuenta(auth: ServicioAuth, rol: RolSemilla, clave: string) {
+async function asegurarCuenta(auth: ServicioAuth, rol: RolSemilla, clave: string, actualizarClave: boolean) {
   const correo = correoDemo(rol)
   const nombre = rol === 'plataforma' ? 'Plataforma Ribu' : `Demo ${rol}`
   const existente = await auth.buscarUid(correo)
   const uid = existente ?? (await auth.crearUsuario(correo, clave, nombre))
-  if (existente) await auth.actualizarUsuario(uid, { clave, deshabilitado: false })
+  if (existente) await auth.actualizarUsuario(uid, { ...(actualizarClave ? { clave } : {}), deshabilitado: false })
   await auth.fijarClaims(uid, rol === 'plataforma' ? { rol } : { rol, restauranteId: RESTAURANTE_DEMO })
   return { rol, correo, uid }
 }
@@ -92,7 +98,7 @@ async function asegurarCuenta(auth: ServicioAuth, rol: RolSemilla, clave: string
 /** Las claves no se guardan ni se registran: solo pasan a Authentication. */
 export async function sembrar(ctx: Contexto, solicitud: SolicitudSemilla, origenWeb: string): Promise<ResultadoSemilla> {
   const cuentas: ResultadoSemilla['cuentas'] = []
-  for (const rol of ROLES_SEMILLA) cuentas.push(await asegurarCuenta(ctx.auth, rol, solicitud.claves[rol]))
+  for (const rol of ROLES_SEMILLA) cuentas.push(await asegurarCuenta(ctx.auth, rol, solicitud.claves[rol], solicitud.actualizarClaves))
 
   const mesas = await ctx.db.transaccion(async (tx) => {
     const ahora = iso(ctx.ahora())

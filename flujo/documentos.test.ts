@@ -163,6 +163,16 @@ describe('rechazada', () => {
     expect((await e.pedir('POST', ruta, quien.mesero(), { comprador: null })).status).toBe(200)
   })
 
+  test('un error desconocido no manda al personal a corregir: se reintenta', async () => {
+    const e = crearEscenario()
+    const id = await pagado(e)
+    conFacturacion(e, { emitirFactura: async () => { throw new TypeError('algo raro') } })
+    await e.emitirFactura(id)
+    expect((await e.leerFactura(id)).estado).toBe('en_proceso')
+    expect((await e.leerReferencia(id)).reintentarEn).not.toBeNull()
+    expect((await e.leerFactura(id)).ultimoError).not.toContain('raro')
+  })
+
   test('un 422 no deja nada en Factus: no se elimina y espera la corrección', async () => {
     const e = crearEscenario()
     const id = await pagado(e)
@@ -251,6 +261,28 @@ describe('un 409 al eliminar significa que ya está validada: no se reintenta en
     expect(eliminaciones).toBe(1)
     expect(emisiones).toBe(2)
     expect((await e.leerReferencia(id)).reintentarEn).toBeNull()
+  })
+
+  test('si la DIAN sigue demorada, queda en validación y no se vuelve a eliminar', async () => {
+    const e = crearEscenario()
+    const id = await pagado(e)
+    let emisiones = 0
+    let eliminaciones = 0
+    conFacturacion(e, {
+      emitirFactura: async () => {
+        emisiones++
+        if (emisiones === 1) return { estado: 'rechazada', errores: ['Rechazo'] }
+        if (emisiones === 2) return { estado: 'en_validacion', detalle: 'demorada' }
+        return { estado: 'emitida', datos }
+      },
+      eliminarFactura: async () => { eliminaciones++; throw conflicto() },
+    })
+    await e.emitirFactura(id)
+    expect((await e.leerFactura(id)).estado).toBe('en_validacion')
+    e.avanzar(3600)
+    await barrer(e.ctx)
+    expect((await e.leerFactura(id)).estado).toBe('emitida')
+    expect(eliminaciones).toBe(1)
   })
 
   test('si la consulta se cae por la red, sigue en proceso y se reintenta sin volver a eliminar', async () => {

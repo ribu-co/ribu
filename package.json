@@ -12,7 +12,7 @@
     "test": "vitest run",
     "verificar": "npm run typecheck && npm run test && npm run build",
     "build:functions": "esbuild flujo/funciones.ts --bundle --platform=node --target=node22 --format=cjs --outfile=functions/lib/index.js --external:firebase-admin --external:firebase-functions",
-    "preparar:functions": "npm run build:functions && npm --prefix functions install --no-audit --no-fund --no-package-lock",
+    "preparar:functions": "npm run build:functions && npm --prefix functions install --no-audit --no-fund --no-package-lock && node flujo/emulador/secretos-falsos.mjs",
     "emuladores": "npm run preparar:functions && firebase emulators:start --only auth,firestore,functions --project demo-ribu",
     "test:reglas": "firebase emulators:exec --only firestore --project demo-ribu \"vitest run --config vitest.emulador.config.ts flujo/emulador/reglas\"",
     "test:flujo": "npm run preparar:functions && firebase emulators:exec --only auth,firestore,functions --project demo-ribu \"vitest run --config vitest.emulador.config.ts flujo/emulador/flujo\""

@@ -6,7 +6,7 @@ import { crearEscenario, quien } from './apoyo-pruebas'
 import { correoDemo, leerSolicitudSemilla, RESTAURANTE_DEMO, sembrar } from './semilla'
 
 const CLAVES = { plataforma: 'clave-plataforma', admin: 'clave-admin-1', mesero: 'clave-mesero-1', cocina: 'clave-cocina-1' }
-const solicitud = (reiniciarDemo = false) => ({ claves: CLAVES, reiniciarDemo })
+const solicitud = (reiniciarDemo = false) => ({ claves: CLAVES, reiniciarDemo, actualizarClaves: false })
 const ORIGEN = 'https://ribu.test'
 
 const productoDemo = (e: ReturnType<typeof crearEscenario>, id: string) =>
@@ -125,13 +125,23 @@ describe('sembrar', () => {
     expect(reinicio.mesas.find((m) => m.numero === 3)?.token).toBe(token)
   })
 
-  test('volver a correrla reactiva una cuenta del personal y restablece su clave', async () => {
+  test('volver a correrla reactiva una cuenta del personal', async () => {
     const e = crearEscenario()
     const { cuentas } = await sembrar(e.ctx, solicitud(), ORIGEN)
     const { uid } = cuentas.find((c) => c.rol === 'mesero')!
     await e.db.transaccion(async (tx) => tx.actualizar(`restaurantes/${RESTAURANTE_DEMO}/personal/${uid}`, { activo: false }))
-    await sembrar(e.ctx, { ...solicitud(), claves: { ...CLAVES, mesero: 'otra-clave-larga' } }, ORIGEN)
+    await sembrar(e.ctx, solicitud(), ORIGEN)
     expect(await e.db.leer(`restaurantes/${RESTAURANTE_DEMO}/personal/${uid}`)).toMatchObject({ activo: true })
+  })
+
+  test('volver a correrla no cambia las claves, porque eso cerraría las sesiones abiertas, salvo que se pida', async () => {
+    const e = crearEscenario()
+    const { cuentas } = await sembrar(e.ctx, solicitud(), ORIGEN)
+    const { uid } = cuentas.find((c) => c.rol === 'mesero')!
+    const otras = { ...CLAVES, mesero: 'otra-clave-larga' }
+    await sembrar(e.ctx, { ...solicitud(), claves: otras }, ORIGEN)
+    expect(e.authFalsa.claves.get(uid)).toBe(CLAVES.mesero)
+    await sembrar(e.ctx, { claves: otras, reiniciarDemo: false, actualizarClaves: true }, ORIGEN)
     expect(e.authFalsa.claves.get(uid)).toBe('otra-clave-larga')
   })
 
@@ -155,7 +165,7 @@ describe('leerSolicitudSemilla', () => {
     expect(() => leerSolicitudSemilla({})).toThrow()
     expect(() => leerSolicitudSemilla({ claves: { ...CLAVES, cocina: 'corta' } })).toThrow()
     expect(() => leerSolicitudSemilla({ claves: { ...CLAVES, admin: 123 } })).toThrow()
-    expect(leerSolicitudSemilla({ claves: CLAVES })).toEqual({ claves: CLAVES, reiniciarDemo: false })
+    expect(leerSolicitudSemilla({ claves: CLAVES })).toEqual({ claves: CLAVES, reiniciarDemo: false, actualizarClaves: false })
   })
 
   test('reiniciar solo con true explícito', () => {
