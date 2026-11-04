@@ -132,8 +132,9 @@ function mensajeDe(json: unknown): string | null {
   if (!json || typeof json !== 'object') return null
   const cuerpo = json as Record<string, unknown>
   const mensaje = aTexto(cuerpo.message) ?? aTexto(cuerpo.error)
-  const detalle = detallesDe(cuerpo.errors).join(' ')
-  return [mensaje, detalle].filter(Boolean).join(': ') || null
+  // El sandbox suele repetir en `errors` lo mismo que dice `message`: no se escribe dos veces.
+  const detalles = [...new Set(detallesDe(cuerpo.errors))].filter((texto) => texto !== mensaje)
+  return [mensaje, ...detalles].filter(Boolean).join(': ') || null
 }
 
 /**
@@ -270,7 +271,7 @@ export function crearCobrosFactusPay(opciones: OpcionesFactusPay): ServicioCobro
     }
 
     const json = leerJson(texto)
-    // Factus Pay responde 201 cuando el recaudo es nuevo y 200 cuando ya existía.
+    // Probado en el sandbox: crear responde 200 si se envía `expiration` y 201 si no.
     if (respuesta.status !== 200 && respuesta.status !== 201) {
       throw errorDe(respuesta.status, respuesta.headers, json, censurar)
     }
