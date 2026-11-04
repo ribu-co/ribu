@@ -1,11 +1,13 @@
 // Cálculos que comparten el mock y el cliente de Factus, para que los dos validen lo mismo.
 
-import { ErrorIntegracion } from '../contratos/reglas'
-import type { SolicitudFactura } from '../contratos/tipos'
+import { CODIGO_CORRECCION_NOTA_CREDITO, CODIGO_CORRECCION_NOTA_DEBITO, ErrorIntegracion } from '../contratos/reglas'
+import type { SolicitudFactura, SolicitudNota } from '../contratos/tipos'
 
 /** Factus acepta un `cash_rounding_amount` de máximo 500 pesos, hacia arriba o hacia abajo. */
 export const REDONDEO_MAXIMO = 500
 export const REFERENCIA_MAXIMA = 100
+/** Lo que Factus acepta en `observation`. */
+export const MOTIVO_MAXIMO = 500
 
 /** Redondea a centavos sin el error de coma flotante de 1.005 * 100. */
 export const dosDecimales = (valor: number) => Math.round((valor + Number.EPSILON) * 100) / 100
@@ -57,7 +59,34 @@ export function problemasSolicitud(solicitud: SolicitudFactura): string[] {
   return problemas
 }
 
-export function validarSolicitud(solicitud: SolicitudFactura) {
+/** El `correction_concept_code` de la nota, o null si el concepto no es de ese tipo de nota. */
+export function codigoCorreccion(solicitud: Pick<SolicitudNota, 'tipo' | 'concepto'>): string | null {
+  const codigos: Record<string, string> =
+    solicitud.tipo === 'credito' ? CODIGO_CORRECCION_NOTA_CREDITO : CODIGO_CORRECCION_NOTA_DEBITO
+  return Object.hasOwn(codigos, solicitud.concepto) ? codigos[solicitud.concepto] : null
+}
+
+export function problemasNota(solicitud: SolicitudNota): string[] {
   const problemas = problemasSolicitud(solicitud)
+  if (!codigoCorreccion(solicitud)) {
+    problemas.push(`El concepto ${solicitud.concepto} no es de una nota ${solicitud.tipo === 'credito' ? 'crédito' : 'débito'}`)
+  }
+  const motivo = solicitud.motivo.trim()
+  if (motivo.length === 0 || motivo.length > MOTIVO_MAXIMO) {
+    problemas.push(`El motivo debe tener entre 1 y ${MOTIVO_MAXIMO} caracteres`)
+  }
+  if (!solicitud.numeroFactura.trim()) problemas.push('Falta el número de la factura que corrige')
+  return problemas
+}
+
+export function validarSolicitud(solicitud: SolicitudFactura) {
+  lanzar(problemasSolicitud(solicitud))
+}
+
+export function validarNota(solicitud: SolicitudNota) {
+  lanzar(problemasNota(solicitud))
+}
+
+function lanzar(problemas: string[]) {
   if (problemas.length > 0) throw new ErrorIntegracion(problemas.join('. '), 'factus', 'validacion')
 }

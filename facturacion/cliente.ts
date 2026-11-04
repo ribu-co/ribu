@@ -4,6 +4,7 @@ import { ErrorIntegracion } from '../contratos/reglas'
 import type {
   Comprador,
   DatosFactura,
+  DatosNota,
   Impuesto,
   LineaFactura,
   MedioPago,
@@ -11,9 +12,10 @@ import type {
   ResultadoEmision,
   ServicioFacturacion,
   SolicitudFactura,
+  SolicitudNota,
   TipoDocumento,
 } from '../contratos/tipos'
-import { calcularTotales, dosDecimales, validarSolicitud } from './calculo'
+import { calcularTotales, codigoCorreccion, dosDecimales, validarNota, validarSolicitud } from './calculo'
 import { crearConexionFactus, type ConfigFactus, type ConexionFactus, type Rango } from './conexion'
 
 export type { ConfigFactus } from './conexion'
@@ -190,6 +192,26 @@ export function datosFactura(documento: DocumentoFactus): DatosFactura {
   }
 }
 
+/** El cuerpo de `POST /v2/credit-notes/validate` y `/v2/debit-notes/validate`: la factura más la corrección. */
+export function cuerpoNota(solicitud: SolicitudNota, rangoId: number) {
+  return {
+    ...cuerpoFactura(solicitud, rangoId),
+    bill_number: solicitud.numeroFactura.trim(),
+    correction_concept_code: codigoCorreccion(solicitud),
+    observation: solicitud.motivo.trim(),
+  }
+}
+
+/** POR CONFIRMAR en el sandbox: si el código único de la nota llega como `cude` o como `cufe`. */
+export function datosNota(documento: DocumentoFactus): DatosNota {
+  return {
+    numero: exigir(documento.number, 'number'),
+    cude: exigir(documento.cude ?? documento.cufe, 'cude'),
+    qrUrl: exigir(documento.links?.qr, 'links.qr'),
+    urlPublica: exigir(documento.links?.public_url, 'links.public_url'),
+  }
+}
+
 /** Crea y valida un documento en su rango. Si Factus ya no acepta el rango guardado, lo olvida. */
 export async function validarEnRango(
   conexion: ConexionFactus,
@@ -219,9 +241,16 @@ export const RUTA_DOCUMENTO: Record<Rango, string> = {
 
 const segmento = (valor: string) => encodeURIComponent(valor)
 
+/** Las facturas se eliminan en `destroy/reference` y las notas en `reference`. */
+const RUTA_ELIMINAR: Record<Rango, string> = {
+  factura: `${RUTA_DOCUMENTO.factura}/destroy/reference`,
+  credito: `${RUTA_DOCUMENTO.credito}/reference`,
+  debito: `${RUTA_DOCUMENTO.debito}/reference`,
+}
+
 /** Solo para documentos rechazados: uno en validación nunca se elimina. */
 export async function eliminarDocumento(conexion: ConexionFactus, rango: Rango, referencia: string) {
-  await conexion.pedir('DELETE', `${RUTA_DOCUMENTO[rango]}/destroy/reference/${segmento(referencia)}`)
+  await conexion.pedir('DELETE', `${RUTA_ELIMINAR[rango]}/${segmento(referencia)}`)
 }
 
 /** Factus devuelve el PDF en base64 en `pdf_base_64_encoded`. */
@@ -240,12 +269,7 @@ export async function enviarCorreoDocumento(conexion: ConexionFactus, rango: Ran
   await conexion.pedir('POST', `${RUTA_DOCUMENTO[rango]}/${segmento(numero)}/send-email`, { cuerpo: { email: correo } })
 }
 
-export type FacturacionFactus = Pick<
-  ServicioFacturacion,
-  'emitirFactura' | 'eliminarFactura' | 'descargarPdf' | 'enviarCorreo'
->
-
-export function crearFacturacionFactus(config: ConfigFactus): FacturacionFactus {
+export function crearFacturacionFactus(config: ConfigFactus): ServicioFacturacion {
   const conexion = crearConexionFactus(config)
 
   return {
@@ -259,5 +283,16 @@ export function crearFacturacionFactus(config: ConfigFactus): FacturacionFactus 
     eliminarFactura: (referencia) => eliminarDocumento(conexion, 'factura', referencia),
     descargarPdf: (numero) => descargarPdfDocumento(conexion, 'factura', numero),
     enviarCorreo: (numero, correo) => enviarCorreoDocumento(conexion, 'factura', numero, correo),
+
+    async emitirNota(solicitud) {
+      validarNota(solicitud)
+      const documento = await validarEnRango(conexion, solicitud.tipo, `${RUTA_DOCUMENTO[solicitud.tipo]}/validate`, (rangoId) =>
+        cuerpoNota(solicitud, rangoId),
+      )
+      return interpretarEmision(documento, datosNota)
+    },
+    eliminarNota: (tipo, referencia) => eliminarDocumento(conexion, tipo, referencia),
+    descargarPdfNota: (tipo, numero) => descargarPdfDocumento(conexion, tipo, numero),
+    enviarCorreoNota: (tipo, numero, correo) => enviarCorreoDocumento(conexion, tipo, numero, correo),
   }
 }

@@ -1,7 +1,15 @@
 import { expect, test } from 'vitest'
 import { ErrorIntegracion } from '../contratos/reglas'
-import { calcularTotales, dosDecimales, problemasSolicitud, validarSolicitud } from './calculo'
-import { solicitudDePrueba } from './datos-prueba'
+import {
+  calcularTotales,
+  codigoCorreccion,
+  dosDecimales,
+  problemasNota,
+  problemasSolicitud,
+  validarNota,
+  validarSolicitud,
+} from './calculo'
+import { notaDePrueba, solicitudDePrueba } from './datos-prueba'
 
 test('dos decimales no pierde centavos por la coma flotante', () => {
   expect(dosDecimales(1.005)).toBe(1.01)
@@ -60,4 +68,20 @@ test('validar lanza un error de validación que no se reintenta', () => {
     expect(error).toBeInstanceOf(ErrorIntegracion)
     expect(error).toMatchObject({ servicio: 'factus', tipo: 'validacion', reintentable: false })
   }
+})
+
+test('una nota necesita un concepto de su tipo, un motivo y la factura que corrige', () => {
+  expect(problemasNota(notaDePrueba())).toEqual([])
+  expect(problemasNota(notaDePrueba({ tipo: 'debito', concepto: 'otros' }))).toEqual([])
+  expect(problemasNota(notaDePrueba({ tipo: 'debito', concepto: 'anulacion' }))).toHaveLength(1)
+  expect(problemasNota(notaDePrueba({ motivo: '  ' }))).toHaveLength(1)
+  expect(problemasNota(notaDePrueba({ motivo: 'x'.repeat(501) }))).toHaveLength(1)
+  expect(problemasNota(notaDePrueba({ numeroFactura: '' }))).toHaveLength(1)
+  expect(() => validarNota(notaDePrueba({ motivo: '' }))).toThrow(ErrorIntegracion)
+})
+
+test('el código de corrección sale del concepto y del tipo de nota', () => {
+  expect(codigoCorreccion({ tipo: 'credito', concepto: 'anulacion' })).toBe('2')
+  expect(codigoCorreccion({ tipo: 'debito', concepto: 'cambio_valor' })).toBe('3')
+  expect(codigoCorreccion({ tipo: 'credito', concepto: 'intereses' })).toBeNull()
 })

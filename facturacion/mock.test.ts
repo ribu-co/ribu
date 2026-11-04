@@ -157,3 +157,11 @@ test('las notas siguen las reglas de rechazo, PDF y correo, cada tipo en su rang
   await facturacion.enviarCorreoNota('debito', 'ND1', 'cliente@ejemplo.com')
   expect(facturacion.correos).toEqual([{ rango: 'debito', numero: 'ND1', correo: 'cliente@ejemplo.com' }])
 })
+
+test('el mock revisa la nota igual que el cliente real', async () => {
+  const facturacion = crearFacturacionMock()
+  await facturacion.emitirFactura(solicitudDePrueba())
+  await fallaCon(facturacion.emitirNota(notaDePrueba({ tipo: 'debito', concepto: 'anulacion' })), 'validacion')
+  await fallaCon(facturacion.emitirNota(notaDePrueba({ motivo: '' })), 'validacion')
+  expect(facturacion.emisiones).toHaveLength(1)
+})

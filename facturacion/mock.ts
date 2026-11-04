@@ -12,7 +12,7 @@ import type {
   SolicitudFactura,
   SolicitudNota,
 } from '../contratos/tipos'
-import { validarSolicitud } from './calculo'
+import { validarNota, validarSolicitud } from './calculo'
 import type { Rango } from './conexion'
 
 export type EscenarioEmision = 'emitida' | 'en_validacion' | 'rechazada'
@@ -99,6 +99,7 @@ export function crearFacturacionMock(opciones: OpcionesFacturacionMock = {}): Fa
     },
 
     async emitirNota(solicitud) {
+      validarNota(solicitud)
       const factura = [...rangos.factura.values()].find((doc) => doc.numero === solicitud.numeroFactura)
       if (factura?.estado !== 'emitida') {
         throw invalido(`La factura ${solicitud.numeroFactura} no existe o no está validada`)
