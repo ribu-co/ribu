@@ -4,8 +4,18 @@
 // El token sale de `.env` y viaja en `Authorization: Bearer`. No se imprime
 // nunca, ni dentro de los mensajes de error.
 
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { ErrorIntegracion } from '../contratos/reglas'
-import type { Cobro, EstadoCobro, Fecha, Pesos, ServicioCobros, SolicitudCobro } from '../contratos/tipos'
+import type {
+  Cobro,
+  EstadoCobro,
+  Fecha,
+  NotificacionCobro,
+  PagadorCobro,
+  Pesos,
+  ServicioCobros,
+  SolicitudCobro,
+} from '../contratos/tipos'
 import { ESTADOS_COBRO } from '../contratos/tipos'
 
 export interface OpcionesFactusPay {
@@ -22,9 +32,6 @@ export interface OpcionesFactusPay {
   /** El webhook debe contestar en menos de 10 segundos, así que la llamada no se cuelga. */
   tiempoLimiteMs?: number
 }
-
-/** `leerWebhook` llega en el paso siguiente. */
-export type CobrosFactusPay = Omit<ServicioCobros, 'leerWebhook'>
 
 const TIEMPO_LIMITE_MS = 8_000
 
@@ -174,6 +181,36 @@ function aCobro(json: unknown, status: number, referencia: string, monto?: Pesos
   }
 }
 
+/**
+ * Compara en tiempo constante. Compara los resúmenes sha256, no las llaves, por dos
+ * razones: `timingSafeEqual` revienta si las longitudes no coinciden, y comparar la
+ * longitud aparte filtraría el largo de la llave.
+ */
+function llavesIguales(esperada: string, recibida: string): boolean {
+  const resumen = (texto: string) => createHash('sha256').update(texto, 'utf8').digest()
+  return timingSafeEqual(resumen(esperada), resumen(recibida))
+}
+
+const noAutorizado = () =>
+  new ErrorIntegracion('La llave del webhook no coincide', 'factus_pay', 'no_autorizado', 401)
+
+const webhookInvalido = (porque: string) =>
+  new ErrorIntegracion(`El webhook de Factus Pay ${porque}`, 'factus_pay', 'validacion', 422)
+
+/** `payer` solo llega cuando el recaudo está pagado y el banco mandó los datos. */
+function aPagador(valor: unknown): PagadorCobro | null {
+  if (!valor || typeof valor !== 'object') return null
+  const payer = valor as Record<string, unknown>
+  const nombre = aTexto(payer.name)
+  const documento = aTexto(payer.document_number)
+  if (!nombre && !documento) return null
+  return {
+    nombre: nombre ?? '',
+    tipoDocumento: aTexto(payer.document_type) ?? '',
+    documento: documento ?? '',
+  }
+}
+
 function leerJson(texto: string): unknown {
   if (texto.trim() === '') return null
   try {
@@ -189,7 +226,7 @@ function razonDe(causa: unknown): string {
   return 'fallo desconocido'
 }
 
-export function crearCobrosFactusPay(opciones: OpcionesFactusPay): CobrosFactusPay {
+export function crearCobrosFactusPay(opciones: OpcionesFactusPay): ServicioCobros {
   const base = sinBarraFinal(opciones.url)
   const hacerFetch = opciones.fetch ?? globalThis.fetch
   const tiempoLimiteMs = opciones.tiempoLimiteMs ?? TIEMPO_LIMITE_MS
@@ -254,5 +291,32 @@ export function crearCobrosFactusPay(opciones: OpcionesFactusPay): CobrosFactusP
     return aCobro(json, status, referencia)
   }
 
-  return { crearCobro, consultarCobro }
+  /**
+   * Factus Pay manda la llave en `?key=`. Si no coincide hay que responder 401; si
+   * coincide, hay que responder 2xx en menos de 10 segundos y confirmar con
+   * `consultarCobro` antes de facturar, porque el webhook se puede repetir.
+   */
+  function leerWebhook(clave: string | null, cuerpo: unknown): NotificacionCobro {
+    // Una llave sin configurar no autoriza nada, aunque llegue vacía de los dos lados.
+    if (opciones.llaveWebhook === '' || clave === null) throw noAutorizado()
+    if (!llavesIguales(opciones.llaveWebhook, clave)) throw noAutorizado()
+
+    const data = (cuerpo as { data?: unknown } | null)?.data
+    if (!data || typeof data !== 'object') throw webhookInvalido('llegó sin `data`')
+    const recaudo = data as Record<string, unknown>
+
+    const referencia = aTexto(recaudo.reference_code)
+    if (!referencia) throw webhookInvalido('llegó sin `data.reference_code`')
+    const monto = aPesos(recaudo.amount)
+    if (monto === null) throw webhookInvalido('llegó sin `data.amount`')
+
+    return {
+      referencia,
+      monto,
+      recaudadoEn: aFecha(recaudo.collected_at),
+      pagador: aPagador(recaudo.payer),
+    }
+  }
+
+  return { crearCobro, consultarCobro, leerWebhook }
 }
