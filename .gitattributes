@@ -1,0 +1,2 @@
+# Los archivos de texto usan LF en todos los sistemas: las pruebas de contratos/ leen openapi.yaml.
+* text=auto eol=lf
