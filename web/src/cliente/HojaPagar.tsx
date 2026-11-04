@@ -22,12 +22,16 @@ interface DatosComprador {
 
 const VACIO: DatosComprador = { correo: '', tipoDocumento: 'CC', documento: '', nombre: '', nit: '', razonSocial: '' }
 
+/** 900.123.456-7: el dígito de verificación lo calcula Factus, y dejarlo pegado daría otro NIT. */
+export const nitConDigito = (nit: string) => /[-–—]\s*\d\s*$/.test(nit)
+
 export function armarComprador(tipo: TipoComprador, datos: DatosComprador): Comprador {
   const correo = datos.correo.trim()
   if (tipo === 'persona') {
     return { tipo, tipoDocumento: datos.tipoDocumento, documento: datos.documento.trim(), nombre: datos.nombre.trim(), correo }
   }
-  if (tipo === 'empresa') return { tipo, nit: datos.nit.replace(/\D/g, ''), razonSocial: datos.razonSocial.trim(), correo }
+  // Solo quita puntos y espacios. Con otro carácter no pasa la validación: quitarlo cambiaría el NIT sin avisar.
+  if (tipo === 'empresa') return { tipo, nit: datos.nit.replace(/[.\s]/g, ''), razonSocial: datos.razonSocial.trim(), correo }
   return { tipo, correo: correo || null }
 }
 
@@ -226,7 +230,11 @@ export function HojaPagar({
         </label>
         {!datosValidos && (tipo !== 'consumidor_final' || datos.correo.trim() !== '') && (
           <p className="ayuda-campo ayuda-campo--alerta">
-            {tipo === 'consumidor_final' ? 'Revisa el correo.' : 'Completa documento, nombre y un correo válido.'}
+            {tipo === 'empresa' && nitConDigito(datos.nit)
+              ? 'Escribe el NIT sin el dígito de verificación, sin el guion ni el número que le sigue.'
+              : tipo === 'consumidor_final'
+                ? 'Revisa el correo.'
+                : 'Completa documento, nombre y un correo válido.'}
           </p>
         )}
       </fieldset>

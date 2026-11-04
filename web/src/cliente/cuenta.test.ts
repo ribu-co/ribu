@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest'
 import type { Cuenta, ResumenPago } from '../../../contratos/tipos'
 import { compradorValido } from '../datos/comprador'
 import { cobrosAjenos, etiquetaPago, leerPorcentaje, miCobroActivo, opcionesPropina, todoPagado, unidadesPorConfirmar } from './cuenta'
-import { armarComprador } from './HojaPagar'
+import { armarComprador, nitConDigito } from './HojaPagar'
 import { consultarCobros } from './cuenta'
 
 const pago = (p: Partial<ResumenPago>): ResumenPago => ({
@@ -101,4 +101,14 @@ test('consulta todos los cobros ajenos, aunque uno falle', async () => {
   })
   await expect(consultarCobros(verificar, [{ id: 'p1' }, { id: 'p2' }])).resolves.toHaveLength(2)
   expect(verificar.mock.calls.map(([id]) => id)).toEqual(['p1', 'p2'])
+})
+
+test('un NIT con dígito de verificación no se convierte en otro NIT', () => {
+  const datos = { correo: 'pagos@ejemplo.co', tipoDocumento: 'CC' as const, documento: '', nombre: '', nit: '900.123.456-7', razonSocial: 'Ejemplo SAS' }
+  expect(nitConDigito(datos.nit)).toBe(true)
+  expect(compradorValido(armarComprador('empresa', datos))).toBe(false)
+  const sinDigito = armarComprador('empresa', { ...datos, nit: '900.123.456' })
+  expect(sinDigito).toMatchObject({ nit: '900123456' })
+  expect(compradorValido(sinDigito)).toBe(true)
+  expect(nitConDigito('900.123.456')).toBe(false)
 })
