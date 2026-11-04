@@ -120,7 +120,7 @@ Es el flujo que exige el reto.
 **Esperado:**
 
 - El monto del primer QR no cambia. Sigue siendo por $27.000 más la propina que se haya elegido.
-- `porPagar` muestra solo los $10.800 nuevos.
+- `porPagar` muestra solo los $10.800 nuevos. Sin propina, el consumo total queda en $37.800.
 - Lo nuevo va en otro pago, con otra referencia.
 - Al final hay 2 recaudos y 2 facturas, y nada queda cobrado dos veces.
 
@@ -138,21 +138,20 @@ Es el flujo que exige el reto.
 - Cambiar la división responde `DIVISION_ACTIVA`.
 - Hay 3 referencias, 3 recaudos y 3 facturas, y las partes suman $91.800.
 
-**Variantes con una cuenta de $27.000:**
+**Variantes con una cuenta de $27.000 y propina 0:**
 
-- En 2 partes, debe dar $13.500 cada una.
-- En 3 partes, cada una sería de $9.000, menos del mínimo de $10.000. Debe responder `MONTO_FUERA_DE_RANGO`.
+- En 2 partes, cada una es de $13.500 y se puede crear el recaudo.
+- En 3 partes, cada una es de $9.000, menos del mínimo real de $10.000. Debe responder `MONTO_FUERA_DE_RANGO` sin crear un recaudo; el personal puede registrar efectivo o tarjeta ficticios.
 
 ## 8. Dividir por productos
 
-1. Con 2 limonadas de coco y 1 patacón confirmados, un celular paga 1 limonada y el patacón.
-2. El otro trata de pagar 2 limonadas. Después paga 1.
+1. Con 2 limonadas de coco y 1 patacón confirmados, un celular paga 1 limonada y el patacón, sin propina.
+2. El otro trata de pagar 2 limonadas. Después paga 1, sin propina.
 
 **Esperado:**
 
-- El primer pago es de $22.800 antes de propina.
-- Pedir 2 limonadas responde `CANTIDAD_NO_DISPONIBLE`.
-- El segundo pago es de $12.000 antes de propina.
+- El primer pago es de $22.800 y el segundo de $12.000. Suman $34.800 y ambos superan el mínimo de Factus Pay.
+- Pedir 2 limonadas después de reservar la primera responde `CANTIDAD_NO_DISPONIBLE`.
 - Cada factura lleva solo lo que cubrió su pago.
 
 ## 9. Efectivo y tarjeta
@@ -167,7 +166,7 @@ Es el flujo que exige el reto.
 - El pago queda `pagado`, sin QR ni recaudo.
 - Se emite la factura, con su medio de pago correcto en Factus.
 
-Los códigos de medio de pago existen en las tablas de Factus: `10` efectivo, `49` débito y `48` crédito. Falta probarlos.
+Las tablas de Factus identifican efectivo `10`, tarjeta débito `49` y tarjeta crédito `48`. Falta probar la emisión con estos medios, no encontrar sus códigos: ver `docs/explicacion-integracion.md`.
 
 ## 10. Factura rechazada
 
@@ -211,7 +210,7 @@ Los códigos de medio de pago existen en las tablas de Factus: `10` efectivo, `4
 
 - Con `factus_pay`, la nota no se emite hasta que entra el pago. El cobro usa el id de la nota como referencia.
 - Con efectivo, se emite de una vez.
-- Una nota débito por menos de $10.000 con `factus_pay` responde `MONTO_FUERA_DE_RANGO`.
+- Una nota débito por menos de $10.000 con `factus_pay` responde `MONTO_FUERA_DE_RANGO`. Si el valor es menor, se cobra por efectivo o tarjeta ficticios.
 - La nota débito emitida aumenta lo que se puede acreditar de esa factura.
 
 ## 13. Liberar la mesa
@@ -230,7 +229,7 @@ Los códigos de medio de pago existen en las tablas de Factus: `10` efectivo, `4
 ## Si hay tiempo
 
 - **Redondeo:** paga 1 limonada de coco y 3 limonadas por separado. El total en Factus debe dar $12.000 y $36.000. Antes de hacerlo, avisa a Elias.
-- **QR vencido:** espera los 600 segundos. Factus Pay sigue mostrando `ready`, pero Ribu mira `qr_expires_at`: el pago queda `vencido` y lo que cubría queda libre.
+- **QR vencido:** espera los 600 segundos. Aunque Factus Pay siga en `ready`, Ribu compara `qr_expires_at` convertido desde hora de Colombia a UTC, marca `vencido` y libera lo que cubría.
 - **Celular:** repite el caso 4 en iPhone y en Android, con pantalla pequeña.
 
 ## Recorridos adicionales del MVP
@@ -252,3 +251,9 @@ Después de liberar la mesa, abrir el mismo enlace con una sesión nueva y trata
 Por recorrido registrar fecha, ejecutor, URL, commit desplegado, entorno, importe, referencias de prueba, resultado observado y evidencia sin secretos. Usar pasa, falla o bloqueado solo después de ejecutar; antes, sin ejecutar. Las pruebas unitarias del repo no acreditan estos recorridos.
 
 Reportar un fallo reproducible por issue o en el PR responsable, con pasos exactos, esperado, observado, impacto y evidencia. Anotar su enlace; no decir que se reportó sin enlace. Reensayar sobre el commit que lo corrige. Los casos 14 a 16 también están sin ejecutar: no hay fallos observados todavía que comunicar como hechos.
+
+## Ajustes tras las pruebas de Integración
+
+El [PR #13](https://github.com/ribu-co/ribu/pull/13) confirmó en sandbox el rango de Factus Pay de $10.000 a $12.000.000, que reemplaza el rango publicado de $1.000 a $12.100.000 para estas pruebas. Toda cuenta o parte menor se registra en efectivo o tarjeta, sin dinero real. También confirmó INC, redondeo y notas con `cude`, pero no el recorrido completo de la app ni el pago del simulador.
+
+Los cambios de importes y responsables siguen la [revisión de Juan Diego](https://github.com/ribu-co/ribu/pull/7#issuecomment-6637331388). Integración actualizó los roles: Andrés atiende Interfaz y Néstor Cobros. Los recorridos siguen sin ejecutar hasta contar con el despliegue y las sesiones de prueba.
