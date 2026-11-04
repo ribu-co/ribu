@@ -71,3 +71,15 @@ Queremos saber si un cliente puede pagar desde el mismo celular, copiando la lla
 | No se puede pegar la llave | Avísale a Néstor y a Andrés. No prometas pagar desde el mismo celular |
 | No se pudo comprobar el nombre del comercio | No lo uses en la respuesta sobre el QR falso |
 | Otra persona puede sobrescribir el sticker | Bloquéalo, y dilo en la respuesta sobre el QR falso |
+
+## Evidencia y límites del MVP
+
+Al 4 de noviembre de 2026 no se ha escrito NFC, impreso QR ni probado un banco. Registrar responsable, fecha, URL y commit desplegado, tipo de tag, tamaño de impresión, modelos y versiones de teléfonos, banco y versión de su app. No registrar autenticación, saldos, cuentas ni notificaciones personales.
+
+Comparar carácter por carácter el texto del NFC, el QR decodificado y la URL HTTPS entregada por Integración. El sticker guarda el enlace `/m/{token}`, nunca el QR temporal de Factus Pay ni una llave Bre-B. La impresión se prueba sobre papel, no solo desde pantalla.
+
+La prueba bancaria termina en el campo de la llave: no avanzar a autorización ni completar ningún pago. Probar que deja pegar no demuestra que el banco acepte un recaudo de sandbox. Si el banco exige avanzar para probarlo, dejar la prueba bloqueada. El flujo de pago se comprueba exclusivamente con el simulador.
+
+Bloquear la escritura del NFC puede impedir regrabar ese tag; no evita clonarlo ni cubrirlo con un sticker falso. Mostrar el dominio oficial legible y revisar físicamente los stickers son medidas operativas por validar. No afirmar que el NFC elimina el fraude.
+
+Registrar pasa, falla o bloqueado solo tras observarlo y adjuntar evidencia sanitizada. Todos los resultados actuales siguen pendientes. Eddy ajusta el pitch a los modelos y bancos realmente probados.
