@@ -48,3 +48,10 @@ test('si no se pudo entrar, muestra el error en vez de quedarse cargando', () =>
   const html = renderToStaticMarkup(<PaginaMesa token="mesa-1" />)
   expect(html).toContain('No pudimos conectarnos')
 })
+
+test('la plataforma no pide desde la mesa', () => {
+  falso.sesion = { estado: 'listo', valor: { uid: 'u1', rol: 'plataforma', restauranteId: null, nombre: 'Ana' } } satisfies Lectura<Sesion>
+  const html = renderToStaticMarkup(<PaginaMesa token="mesa-1" />)
+  expect(html).toContain('Entraste como plataforma')
+  expect(html).not.toContain('Pidiendo como')
+})
