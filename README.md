@@ -8,8 +8,8 @@ Proyecto del Reto Factus, API WARS Montería.
 
 - Juan Diego Díaz Avendaño: Integración
 - Elias David Vidal de la Rosa: Facturación
-- Andrés Felipe Ortiz Rodríguez: Cobros
-- Néstor Junior Hernández López: Interfaz
+- Andrés Felipe Ortiz Rodríguez: Interfaz
+- Néstor Junior Hernández López: Cobros
 - Eddy Lans: Producto y pitch
 
 ## Cómo correrlo

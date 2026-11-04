@@ -30,8 +30,8 @@ Edita solo la carpeta de tu rol.
 |---|---|---|
 | Integración | Juan Diego | `contratos/`, `flujo/`, `.github/`, dependencias y configuración |
 | Facturación | Elias | `facturacion/` |
-| Cobros | Andrés | `cobros/` |
-| Interfaz | Néstor | `web/` |
+| Cobros | Néstor | `cobros/` |
+| Interfaz | Andrés | `web/` |
 | Producto y pitch | Eddy | `docs/`, `pitch/` |
 
 Los contratos están en `contratos/`: empieza por su `README.md`. No los rompas ni los rodees. Si necesitas un cambio o una dependencia nueva, abre un PR pequeño solo con eso y avísale a Juan Diego.
