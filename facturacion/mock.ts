@@ -163,7 +163,8 @@ export function crearFacturacionMock(opciones: OpcionesFacturacionMock = {}): Fa
   function eliminar(rango: Rango, referencia: string) {
     const documento = rangos[rango].get(referencia)
     if (!documento) throw noEncontrado(`No hay una ${NOMBRE[rango]} con la referencia ${referencia}`)
-    if (documento.estado === 'emitida') throw invalido(`La ${NOMBRE[rango]} ${referencia} ya está validada`)
+    // Factus responde 409 al eliminar un documento validado.
+    if (documento.estado === 'emitida') throw conflicto(`La ${NOMBRE[rango]} ${referencia} ya está validada`)
     if (documento.estado === 'en_validacion') {
       // El contrato lo prohíbe: la DIAN todavía puede validarla.
       throw invalido(`La ${NOMBRE[rango]} ${referencia} está en validación y no se elimina`)

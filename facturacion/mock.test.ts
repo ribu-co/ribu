@@ -82,7 +82,7 @@ test('una rechazada bloquea el rango hasta eliminarla, y luego se reenvía con l
 test('no se elimina una factura validada ni una que no existe', async () => {
   const facturacion = crearFacturacionMock()
   await facturacion.emitirFactura(solicitudDePrueba())
-  await fallaCon(facturacion.eliminarFactura('pago-1'), 'validacion', 422)
+  await fallaCon(facturacion.eliminarFactura('pago-1'), 'conflicto', 409)
   await fallaCon(facturacion.eliminarFactura('no-existe'), 'validacion', 404)
 })
 

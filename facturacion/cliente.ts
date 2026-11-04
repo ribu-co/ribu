@@ -37,7 +37,7 @@ export const CODIGO_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
   PPT: '48',
 }
 
-/** POR CONFIRMAR en el sandbox: las preguntas frecuentes dicen 222222222222 y el ejemplo oficial 22222222222. */
+/** Confirmado en el sandbox. El ejemplo oficial dice 22222222222, con un 2 menos. */
 export const DOCUMENTO_CONSUMIDOR_FINAL = '222222222222'
 
 /** Contado. */
@@ -202,11 +202,11 @@ export function cuerpoNota(solicitud: SolicitudNota, rangoId: number) {
   }
 }
 
-/** POR CONFIRMAR en el sandbox: si el código único de la nota llega como `cude` o como `cufe`. */
+/** El código único de la nota llega como `cude`. */
 export function datosNota(documento: DocumentoFactus): DatosNota {
   return {
     numero: exigir(documento.number, 'number'),
-    cude: exigir(documento.cude ?? documento.cufe, 'cude'),
+    cude: exigir(documento.cude, 'cude'),
     qrUrl: exigir(documento.links?.qr, 'links.qr'),
     urlPublica: exigir(documento.links?.public_url, 'links.public_url'),
   }

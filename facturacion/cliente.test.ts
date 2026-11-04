@@ -27,7 +27,7 @@ function preparar(validar: Responder = () => json(validada(), 201)) {
     if (llamada.url.pathname === '/oauth/token') {
       return json({ token_type: 'Bearer', expires_in: 600, access_token: 'acceso', refresh_token: 'renovar' })
     }
-    if (llamada.url.pathname === '/v2/numbering-ranges') return json({ data: [{ id: 77, is_active: 1, is_expired: 0 }] })
+    if (llamada.url.pathname === '/v2/numbering-ranges') return json({ data: { data: [{ id: 77, is_active: 1, is_expired: 0 }] } })
     return validar(llamada)
   })
   const facturacion = crearFacturacionFactus({
@@ -214,7 +214,14 @@ test('si Factus no acepta el rango guardado, la siguiente emisión lo consulta o
   let intentos = 0
   const { facturacion, llamadas } = preparar(() =>
     ++intentos === 1
-      ? json({ message: 'Datos inválidos', errors: { numbering_range_id: ['El rango no está activo'] } }, 422)
+      ? json(
+          {
+            status: 'Validation error',
+            message: 'Error de validación',
+            data: { message: 'Error de validación', errors: { numbering_range_id: ['El rango no está activo'] } },
+          },
+          422,
+        )
       : json(validada(), 201),
   )
   await expect(facturacion.emitirFactura(solicitudDePrueba())).rejects.toMatchObject({ tipo: 'validacion' })
@@ -230,9 +237,9 @@ test('elimina una factura rechazada por su referencia', async () => {
   expect(llamada.headers.get('Authorization')).toBe('Bearer acceso')
 })
 
-test('si Factus no deja eliminar, el error llega como tal', async () => {
-  const { facturacion } = preparar(() => json({ message: 'La factura ya fue validada' }, 422))
-  await expect(facturacion.eliminarFactura('pago-1')).rejects.toMatchObject({ tipo: 'validacion', status: 422 })
+test('eliminar una factura validada responde 409', async () => {
+  const { facturacion } = preparar(() => json({ message: 'La factura ya fue validada' }, 409))
+  await expect(facturacion.eliminarFactura('pago-1')).rejects.toMatchObject({ tipo: 'conflicto', status: 409 })
 })
 
 test('descarga el PDF en base64 con su nombre de archivo', async () => {

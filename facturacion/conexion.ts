@@ -162,12 +162,11 @@ export function crearConexionFactus(config: ConfigFactus): ConexionFactus {
   }
 
   async function buscarRango(rango: Rango): Promise<number> {
-    const cuerpo = await pedir<{ data?: unknown }>('GET', '/v2/numbering-ranges', {
+    // La lista llega en `data.data`, con la paginación al lado.
+    const cuerpo = await pedir<{ data?: { data?: RangoFactus[] } | null }>('GET', '/v2/numbering-ranges', {
       consulta: { 'filter[document]': DOCUMENTO_RANGO[rango], 'filter[is_active]': '1' },
     })
-    // POR CONFIRMAR: si la lista viene en `data` o en `data.data`, con la paginación al lado.
-    const datos = cuerpo?.data as { data?: unknown } | unknown[] | undefined
-    const lista = (Array.isArray(datos) ? datos : Array.isArray(datos?.data) ? datos.data : []) as RangoFactus[]
+    const lista = Array.isArray(cuerpo?.data?.data) ? cuerpo.data.data : []
     const activo = lista.find((r) => Boolean(r.is_active ?? true) && !r.is_expired)
     if (!activo) {
       throw new ErrorIntegracion(
@@ -223,16 +222,32 @@ export function errorDeRespuesta(respuesta: Response, cuerpo: unknown, texto: st
   return new ErrorIntegracion(mensaje, 'factus', tipo, status, esperar)
 }
 
-/** Factus responde `{ message, errors }`, con `errors` como objeto de listas o como lista. */
+interface CuerpoError {
+  message?: unknown
+  errors?: unknown
+}
+
+/**
+ * Un 422 de Factus trae el motivo dentro de `data`:
+ * `{ message, data: { message, errors: { campo: [motivo] } } }`. También se lee `errors` en la raíz.
+ */
 function detalleDeError(cuerpo: unknown): string | null {
   if (!cuerpo || typeof cuerpo !== 'object') return null
-  const { message, errors } = cuerpo as { message?: unknown; errors?: unknown }
+  const raiz = cuerpo as CuerpoError & { data?: unknown }
+  const niveles: CuerpoError[] = [raiz]
+  if (raiz.data && typeof raiz.data === 'object') niveles.push(raiz.data as CuerpoError)
+
   const partes: string[] = []
-  if (typeof message === 'string' && message) partes.push(message)
-  if (Array.isArray(errors)) partes.push(...errors.map(String))
-  else if (errors && typeof errors === 'object') {
-    for (const [campo, lista] of Object.entries(errors)) {
-      partes.push(`${campo}: ${Array.isArray(lista) ? lista.join(', ') : String(lista)}`)
+  const agregar = (parte: string) => {
+    if (parte && !partes.includes(parte)) partes.push(parte)
+  }
+  for (const { message } of niveles) if (typeof message === 'string') agregar(message)
+  for (const { errors } of niveles) {
+    if (Array.isArray(errors)) errors.forEach((error) => agregar(String(error)))
+    else if (errors && typeof errors === 'object') {
+      for (const [campo, lista] of Object.entries(errors)) {
+        agregar(`${campo}: ${Array.isArray(lista) ? lista.join(', ') : String(lista)}`)
+      }
     }
   }
   return partes.length > 0 ? partes.join('. ') : null

@@ -26,7 +26,8 @@ function preparar(responder: Responder = () => json(validada(), 201)) {
       return json({ token_type: 'Bearer', expires_in: 600, access_token: 'acceso', refresh_token: 'renovar' })
     }
     if (llamada.url.pathname === '/v2/numbering-ranges') {
-      return json({ data: [{ id: RANGOS[llamada.url.searchParams.get('filter[document]')!], is_active: 1, is_expired: 0 }] })
+      const id = RANGOS[llamada.url.searchParams.get('filter[document]')!]
+      return json({ data: { data: [{ id, is_active: 1, is_expired: 0 }] } })
     }
     return responder(llamada)
   })
@@ -87,11 +88,6 @@ test.each([
   expect(JSON.parse(llamada.cuerpo!).numbering_range_id).toBe(rangoId)
   const consultado = llamadas.find((l) => l.url.pathname === '/v2/numbering-ranges')!
   expect(consultado.url.searchParams.get('filter[document]')).toBe(tipo === 'credito' ? '22' : '23')
-})
-
-test('si el código único llega como cufe, también sirve', async () => {
-  const { facturacion } = preparar(() => json(validada({ cude: undefined, cufe: CUDE }), 201))
-  expect(await facturacion.emitirNota(notaDePrueba())).toMatchObject({ estado: 'emitida', datos: { cude: CUDE } })
 })
 
 test('las notas siguen las mismas reglas de rechazo y demora', async () => {

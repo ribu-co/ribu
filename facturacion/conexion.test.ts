@@ -169,12 +169,36 @@ test('Retry-After también puede venir como fecha', () => {
   expect(segundosDeEspera('pronto', ahora)).toBeUndefined()
 })
 
-test('un 422 explica qué campos fallaron', async () => {
+test('un 422 explica qué campos fallaron, con el formato real de Factus', async () => {
+  const { conexion } = preparar(() =>
+    json(
+      {
+        status: 'Validation error',
+        message: 'Error de validación',
+        data: {
+          message: 'Error de validación',
+          errors: { email: ['El correo no esta autorizado para recibir correos en el entorno sandbox'] },
+        },
+      },
+      422,
+    ),
+  )
+  const error = await errorDe(conexion.pedir('POST', '/v2/bills/1/send-email', { cuerpo: {} }))
+  expect(error.message).toBe(
+    'Factus respondió 422: Error de validación. email: El correo no esta autorizado para recibir correos en el entorno sandbox',
+  )
+})
+
+test('errors también se lee en la raíz, como lista o como objeto', async () => {
   const { conexion } = preparar(() =>
     json({ message: 'Datos inválidos', errors: { 'customer.names': ['Es obligatorio'], items: ['Vacío'] } }, 422),
   )
   const error = await errorDe(conexion.pedir('POST', '/v2/bills/validate', { cuerpo: {} }))
   expect(error.message).toBe('Factus respondió 422: Datos inválidos. customer.names: Es obligatorio. items: Vacío')
+  const lista = preparar(() => json({ message: 'Conflicto', data: { errors: ['Documento pendiente'] } }, 409))
+  expect((await errorDe(lista.conexion.pedir('GET', '/v2/algo'))).message).toBe(
+    'Factus respondió 409: Conflicto. Documento pendiente',
+  )
 })
 
 test('una página HTML de Cloudflare se resume sin romper', async () => {
@@ -202,7 +226,7 @@ test('los errores no muestran el token ni las credenciales', async () => {
 const rango = (id: number, cambios: Record<string, unknown> = {}) => ({ id, is_active: 1, is_expired: 0, ...cambios })
 
 test('busca el rango activo del documento y lo guarda en memoria', async () => {
-  const { conexion, api } = preparar(() => json({ data: [rango(7, { is_expired: 1 }), rango(8)] }))
+  const { conexion, api } = preparar(() => json({ data: { data: [rango(7, { is_expired: 1 }), rango(8)], pagination: {} } }))
   expect(await conexion.rangoActivo('factura')).toBe(8)
   expect(await conexion.rangoActivo('factura')).toBe(8)
   expect(api()).toHaveLength(1)
@@ -222,7 +246,7 @@ test('cada tipo de documento tiene su rango', async () => {
 
 test('sin rango activo falla y vuelve a consultar en la siguiente llamada', async () => {
   let rangos: unknown[] = []
-  const { conexion, api } = preparar(() => json({ data: rangos }))
+  const { conexion, api } = preparar(() => json({ data: { data: rangos } }))
   const error = await errorDe(conexion.rangoActivo('credito'))
   expect(error).toMatchObject({ tipo: 'validacion', message: 'Factus no tiene un rango activo de documento 22' })
   rangos = [rango(5)]
@@ -231,7 +255,7 @@ test('sin rango activo falla y vuelve a consultar en la siguiente llamada', asyn
 })
 
 test('un rango olvidado se vuelve a consultar', async () => {
-  const { conexion, api } = preparar(() => json({ data: [rango(9)] }))
+  const { conexion, api } = preparar(() => json({ data: { data: [rango(9)] } }))
   await conexion.rangoActivo('debito')
   conexion.olvidarRango('debito')
   await conexion.rangoActivo('debito')
