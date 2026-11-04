@@ -37,6 +37,7 @@ import type {
   ResumenPago,
   Rol,
 } from '../../../contratos/tipos'
+import { correoDe, compradorValido, correoValido } from './comprador'
 import { comoErrorDatos, ErrorDatos, type Cancelar, type FuenteDatos, type Sesion, type Simulador } from './fuente'
 import { semillaDemo, type PersonaPersonal, type Semilla } from './semilla'
 
@@ -116,23 +117,6 @@ function estadoInicial(semilla: Semilla): EstadoMemoria {
 
 /** Un estado guardado por una versión anterior de la demo puede no traer los campos nuevos. */
 const completar = (leido: EstadoMemoria): EstadoMemoria => ({ ...leido, divisionVigente: leido.divisionVigente ?? {}, divisionDePago: leido.divisionDePago ?? {} })
-
-const correoDe = (comprador: Comprador) => comprador.correo?.trim() || null
-const correoValido = (correo: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
-
-/** Lo mismo que revisaría el backend antes de llamar a Factus. */
-export function compradorValido(comprador: Comprador): boolean {
-  const correo = correoDe(comprador)
-  if (correo !== null && !correoValido(correo)) return false
-  switch (comprador.tipo) {
-    case 'consumidor_final':
-      return true
-    case 'persona':
-      return /^[A-Za-z0-9]{3,20}$/.test(comprador.documento) && comprador.nombre.trim().length > 1 && correo !== null
-    case 'empresa':
-      return /^\d{5,15}$/.test(comprador.nit) && comprador.razonSocial.trim().length > 1 && correo !== null
-  }
-}
 
 function correoInicial(comprador: Comprador): EnvioCorreo {
   const destino = correoDe(comprador)

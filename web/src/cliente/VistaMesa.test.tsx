@@ -62,6 +62,7 @@ test('la carta se muestra por categorías con precios de carta', () => {
   for (const categoria of ['Entradas', 'Platos fuertes', 'Bebidas', 'Postres']) expect(html).toContain(categoria)
   expect(html).toContain('$32.400')
   expect(html).toContain('¿Qué se te antoja hoy?')
+  expect(html).toContain('src="/platos/mojarra.jpg"')
 })
 
 test('un producto agotado se ve, pero no se puede pedir', () => {
