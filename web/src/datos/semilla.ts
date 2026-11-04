@@ -61,6 +61,7 @@ export const semillaDemo = (): Semilla => ({
     {
       id: RESTAURANTE,
       nombre: 'Fogón del Manglar',
+      activo: true,
       impuesto: { tipo: 'INC', porcentaje: 8 },
       propinasSugeridas: [0, 5, 8, 10],
     },

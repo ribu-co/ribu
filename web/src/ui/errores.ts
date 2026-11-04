@@ -91,6 +91,14 @@ export const MENSAJES_ERROR: Record<CodigoError, MensajeError> = {
     titulo: 'La nota supera lo que queda de la factura.',
     accion: 'Baja el valor: no se puede acreditar más de lo facturado.',
   },
+  CORREO_EN_USO: {
+    titulo: 'Ya hay una cuenta con ese correo.',
+    accion: 'Usa otro correo o entra con esa cuenta.',
+  },
+  RESTAURANTE_INACTIVO: {
+    titulo: 'Este restaurante no está recibiendo pedidos en este momento.',
+    accion: 'Pídele ayuda al personal.',
+  },
   SERVICIO_NO_DISPONIBLE: {
     titulo: 'No pudimos conectarnos.',
     accion: 'Revisa tu internet e inténtalo de nuevo en unos segundos.',
