@@ -89,16 +89,19 @@ Si preguntan por lo que no cubre esta cuenta:
 - No incluye el costo de Factus facturación ni un precio de Ribu, porque no los tenemos; tampoco otros cargos, impuestos o planes del medio comparado.
 - Dividir la cuenta cuesta más: 3 partes son 3 recaudos, $2.856, antes de dispersar. Con partes de $30.600, una comisión total hipotética de 3 % sería $918 por parte: menor que $952. No se promete ahorro en ese caso.
 - El dinero queda custodiado por Bancoomeva hasta que se ordena la dispersión. No llega solo a la cuenta del restaurante.
+- Un pago de menos de $10.000 no se puede cobrar con Factus Pay. El sandbox responde 422, aunque su documentación diga de $1.000 a $12.100.000.
 
 ### ¿Qué pasa con el efectivo y la tarjeta? ¿Y si hay que devolver dinero?
 
-> Factus Pay cobra por QR y llave Bre-B. El efectivo y la tarjeta se siguen cobrando como hoy, con el datáfono del restaurante. El personal los registra en Ribu, y también generan factura.
+> Factus Pay cobra por QR y llave Bre-B. El efectivo y la tarjeta se siguen cobrando como hoy, con el datáfono del restaurante. El personal los registra en Ribu, y también generan factura. Esa es también la salida para lo que Factus Pay no acepta: solo cobra de 10.000 a 12.000.000 de pesos.
 >
 > Factus Pay no tiene reversos. Si hay que devolver dinero, el restaurante lo devuelve por fuera, y el administrador registra una nota crédito. La nota queda con la devolución pendiente hasta que la marque como hecha. Ribu no mueve ese dinero: deja constancia de lo que falta devolver.
 
 ### ¿Cómo se divide la cuenta?
 
 > De dos formas: en partes iguales, de 2 a 20, o eligiendo productos. Cada pago tiene su propio recaudo y su propia factura. Una misma unidad no puede estar en dos pagos: si alguien ya está pagando ese plato, el sistema no deja cobrarlo otra vez. Y si alguien pide algo después, va en otro pago.
+>
+> Hay un límite: Factus Pay solo cobra desde 10.000 pesos. Si una parte queda por debajo, Ribu no deja dividir así: se divide en menos partes o se paga en efectivo o con tarjeta.
 
 ### ¿Y si alguien pega un QR falso?
 
@@ -131,6 +134,7 @@ Marca cada punto contra la app desplegada. Si no se cumple, quita la frase.
 - [ ] La factura muestra número, CUFE, QR y PDF.
 - [ ] El efectivo y la tarjeta se registran y generan factura.
 - [ ] La cuenta se divide de las dos formas.
+- [ ] Un cobro de menos de $10.000 muestra un mensaje claro y deja pagar en efectivo o con tarjeta.
 - [ ] La nota crédito y la nota débito se emiten.
 - [ ] Las tarifas siguen iguales en la documentación de Factus Pay.
 - [ ] Eddy puede explicar cada frase sin leerla.
