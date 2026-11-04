@@ -59,9 +59,11 @@ test('la carta se muestra por categorías con precios de carta', () => {
   const html = pintar(null)
   expect(html).toContain('Fogón del Manglar')
   expect(html).toContain('Mesa 3')
+  expect(html).toContain('src="/restaurantes/fogon-del-manglar.jpg"')
+  expect(html).toContain('aria-label="Instagram"')
+  expect(html).toContain('Ubicación en Montería')
   for (const categoria of ['Entradas', 'Platos fuertes', 'Bebidas', 'Postres']) expect(html).toContain(categoria)
   expect(html).toContain('$32.400')
-  expect(html).toContain('¿Qué se te antoja hoy?')
   expect(html).toContain('src="/platos/mojarra.jpg"')
 })
 
@@ -107,7 +109,7 @@ test('el personal en el mismo link pide directo a cocina', () => {
 test('el esqueleto de carga usa las mismas piezas que la página real', () => {
   const esqueleto = renderToStaticMarkup(<EsqueletoMesa />)
   const real = pintar(null)
-  for (const clase of ['cabecera', 'marca__logo', 'pastilla', 'hero', 'pestanas__opcion', 'categorias__chip', 'producto__foto', 'producto__precio']) {
+  for (const clase of ['banner', 'banner__logo', 'banner__nombre', 'banner__mesa', 'banner__icono', 'pestanas__opcion', 'categorias__chip', 'producto__foto', 'producto__precio']) {
     expect(real).toContain(clase)
     expect(esqueleto).toContain(clase)
   }

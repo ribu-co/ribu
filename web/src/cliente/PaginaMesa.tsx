@@ -88,6 +88,16 @@ function Marco({ children }: { children: ReactNode }) {
   return <main className="pagina pagina--mesa">{children}</main>
 }
 
+/** Vitrina inventada: no vive en el contrato del restaurante. */
+const VITRINA: Record<string, { lugar: string; mapa: string; red: string; foto: string }> = {
+  'fogon-del-manglar': {
+    lugar: 'Montería',
+    mapa: 'https://www.google.com/maps/search/?api=1&query=Monter%C3%ADa%2C%20C%C3%B3rdoba',
+    red: 'https://instagram.com/fogondelmanglar',
+    foto: '/restaurantes/fogon-del-manglar.jpg',
+  },
+}
+
 export type PestanaMesa = 'carta' | 'pedido' | 'cuenta'
 
 export function VistaMesa({
@@ -129,6 +139,7 @@ export function VistaMesa({
   const lineasActivas = cuenta?.lineas.filter((l) => l.estado !== 'rechazada' && l.estado !== 'anulada') ?? []
   const resumen = resumenLineas(cuenta?.lineas ?? [])
   const cuantos = unidades(borrador)
+  const vitrina = VITRINA[restaurante.id]
 
   async function enviar() {
     const { borrador: limpio, quitados } = quitarNoDisponibles(borrador, productos)
@@ -157,32 +168,40 @@ export function VistaMesa({
 
   return (
     <main className="pagina pagina--mesa">
-      <header className="cabecera">
-        <div className="marca">
-          <span className="marca__logo" aria-hidden="true">
-            <span />
+      <section className="banner">
+        <div className="banner__marca">
+          <span className="banner__logo">
+            {vitrina?.foto ? <img src={vitrina.foto} alt="" /> : <span aria-hidden="true" />}
           </span>
-          <span className="marca__nombre">{restaurante.nombre}</span>
+          <h1 className="banner__nombre">{restaurante.nombre}</h1>
         </div>
-        <span className="pastilla">Mesa {mesa.numero}</span>
-      </header>
-
-      <section className="hero">
-        <p className="hero__etiqueta">{esPersonal ? `Pidiendo como ${sesion.nombre ?? 'personal'}` : `Mesa ${mesa.numero}`}</p>
-        <h1 className="hero__titulo">
-          {esPersonal ? 'Lo que pidas va directo a cocina' : lineasActivas.length ? 'Tu pedido va en camino' : '¿Qué se te antoja hoy?'}
-        </h1>
-        {resumen.length > 0 ? (
-          <button className="hero__resumen" onClick={() => setPestana('pedido')}>
-            <span>{resumen.join(' · ')}</span>
-            <span className="icono-circulo">
-              <Icono nombre="flecha" tamano={16} />
-            </span>
-          </button>
-        ) : (
-          <p className="hero__texto">Pide desde aquí. El mesero confirma y la cocina empieza.</p>
-        )}
+        <div className="banner__pie">
+          {vitrina && (
+            <a className="banner__icono" href={vitrina.red} target="_blank" rel="noreferrer" aria-label="Instagram">
+              <Icono nombre="instagram" tamano={18} />
+            </a>
+          )}
+          {vitrina && (
+            <a className="banner__icono" href={vitrina.mapa} target="_blank" rel="noreferrer" aria-label={`Ubicación en ${vitrina.lugar}`}>
+              <Icono nombre="ubicacion" tamano={18} />
+            </a>
+          )}
+          <span className="banner__mesa">Mesa {mesa.numero}</span>
+        </div>
       </section>
+
+      {esPersonal && (
+        <p className="nota-mesa">
+          <span>Pidiendo como {sesion.nombre ?? 'personal'}</span>
+          Lo que pidas va directo a cocina
+        </p>
+      )}
+      {resumen.length > 0 && (
+        <button className="nota-mesa nota-mesa--boton" onClick={() => setPestana('pedido')}>
+          <span>Tu pedido va en camino</span>
+          {resumen.join(' · ')}
+        </button>
+      )}
 
       <div className="barra-pestanas">
         <Pestanas
