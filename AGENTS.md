@@ -19,9 +19,10 @@ La nota pesa así: creatividad 20 %, solución del problema 20 %, pitch 15 %, AP
 
 TypeScript en todo. Firebase para Hosting, Authentication, Firestore y Cloud Functions. Web con React y Vite, pruebas con Vitest.
 
-- `npm run dev`: la web con Vite. Usa `VITE_FUENTE=memoria` para trabajar sin backend.
-- Producción: https://ribu-co.web.app, proyecto de Firebase `ribu-co`.
+- `npm run dev`: la web con Vite y datos en memoria, sin backend.
+- Producción: https://ribu-co.web.app, proyecto de Firebase `ribu-co`. Ahí corre contra las APIs de sandbox, no contra mocks. Ver `docs/despliegue.md`.
 - `npm run verificar`: tipos, pruebas y build. Es lo mismo que corre CI.
+- `npm run test:reglas` y `npm run test:flujo`: reglas y flujo completo en emuladores, siempre con mocks.
 
 ## Carpetas
 
@@ -53,9 +54,9 @@ gh pr create --fill
 
 ## Reglas
 
-- Usa los mocks por defecto. Factus v2 y Factus Pay permiten 80 llamadas por minuto cada uno. El sandbox real es solo para confirmar lo que está por confirmar y para probar el flujo completo.
+- Para desarrollar y probar, usa los mocks: `npm run dev` y los emuladores no llaman a las APIs. Factus v2 y Factus Pay permiten 80 llamadas por minuto cada uno, y la app desplegada ya gasta de ese límite. El sandbox real es solo para confirmar lo que está por confirmar y para probar el flujo completo.
 - El sandbox de Factus es público: otros integradores ven lo que envías. Usa datos inventados, nunca datos reales de nadie.
-- Nada de credenciales en el repo. Van en `.env`, que está en `.gitignore`. Juan Diego las comparte por privado.
+- Nada de credenciales en el repo. En producción van en Secret Manager. En tu equipo, en `.env`, que está en `.gitignore`. Juan Diego las comparte por privado.
 - Toda llamada a Factus lleva `User-Agent` propio; sin él, Cloudflare responde 403.
 - Nunca imprimas tokens ni credenciales en los registros.
 
@@ -86,5 +87,5 @@ Documentación: https://pay-developers.factus.com.co
 - El cliente paga escaneando el QR o pegando la llave Bre-B en su banco, con el monto exacto. La llave es de un solo uso y no acepta pagos parciales.
 - No hay reversos: una devolución se hace por fuera.
 - Un QR vencido sigue en `ready`: compara `qr_expires_at` con la hora actual. Se renueva con la misma referencia, el mismo monto y otro `expiration`.
-- Webhook: se registra en el panel una URL HTTPS y una llave. Llega un POST con `?key=<llave>` y el recaudo en `data`, con `payer` opcional. Compara la llave en tiempo constante, responde 2xx en menos de 10 segundos y confirma con `GET` antes de facturar. Si no recibe 2xx, Factus Pay hace hasta 6 intentos en total, con esperas de 1 minuto a 3 horas.
+- Webhook: se registra en el panel una URL HTTPS y una llave. En Ribu es `/api/webhooks/factus-pay/<valor>`. Llega un POST con `?key=<llave>` y el recaudo en `data`, con `payer` opcional. Compara la llave en tiempo constante, responde 2xx en menos de 10 segundos y confirma con `GET` antes de facturar. Si no recibe 2xx, Factus Pay hace hasta 6 intentos en total, con esperas de 1 minuto a 3 horas.
 - Simulador: https://pay-api-sandbox.factus.com.co/simulator. Solo funciona escaneando el QR con la cámara, y deja elegir el escenario. Necesitas otro dispositivo para mostrar el QR.
