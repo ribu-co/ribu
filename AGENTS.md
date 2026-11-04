@@ -63,27 +63,27 @@ gh pr create --fill
 Documentación: https://developers.factus.com.co. La guía Word de Halltec y el Postman público de `/v1/` son de la versión anterior: no aplican.
 
 - `POST /oauth/token` con datos de formulario, no JSON. Toma la duración de `expires_in` y renueva con `grant_type=refresh_token`.
-- `GET /v2/numbering-ranges`, con `filter[document]` y `filter[is_active]=1`. El documento es 21 para factura, 22 para nota crédito y 23 para nota débito.
+- `GET /v2/numbering-ranges`, con `filter[document]` y `filter[is_active]=1`. El documento es 21 para factura, 22 para nota crédito y 23 para nota débito. La lista viene en `data.data`.
 - `POST /v2/bills/validate`. El precio va sin impuesto, los impuestos en `taxes[]` (INC es `04`, IVA es `01`) y los pagos en `payment_details[]`. La propina va en `allowance_charges`, con `concept_type` `03` e `is_surcharge` en `true`. La respuesta trae en `data`: `number`, `cufe`, `is_validated`, `errors`, `links.qr` y `links.public_url`.
-- `is_validated` no siempre es `true`:
+- `is_validated` no siempre es `true`. Con `true`, `errors` solo trae notificaciones que no bloquean nada:
   - Con "rechazo" en `errors`, la DIAN rechazó el documento. Elimínalo en seguida, porque bloquea el rango, y reenvíalo corregido. Puedes reusar la referencia.
   - Sin rechazo, la DIAN está demorada. Reintenta con el mismo `reference_code`. Nunca lo elimines ni cambies la referencia.
 - Con una factura ya validada, repetir el `reference_code` devuelve la misma factura, aunque los datos cambien.
 - `409` significa que hay un documento pendiente bloqueando el rango. En el sandbox compartido puede ser de otro equipo.
 - `DELETE /v2/bills/destroy/reference/:reference_code`.
 - `GET /v2/bills/:number/download-pdf`. El PDF llega en base64 en `pdf_base_64_encoded`.
-- `POST /v2/bills/:number/send-email`.
-- Notas crédito y débito: `POST /v2/credit-notes/validate` y `POST /v2/debit-notes/validate`, con `bill_number` y `correction_concept_code`. También `DELETE .../reference/:reference_code`, `GET .../:number/download-pdf` y `POST .../:number/send-email`.
+- `POST /v2/bills/:number/send-email`. En el sandbox solo acepta correos autorizados; con otros responde 422.
+- Notas crédito y débito: `POST /v2/credit-notes/validate` y `POST /v2/debit-notes/validate`, con `bill_number` y `correction_concept_code`. La respuesta trae `cude` en lugar de `cufe`. También `DELETE .../reference/:reference_code`, `GET .../:number/download-pdf` y `POST .../:number/send-email`.
 
 ## Factus Pay (`https://pay-api-sandbox.factus.com.co`)
 
 Documentación: https://pay-developers.factus.com.co
 
 - **Nunca llames a `POST /auth`.** Cada llamada revoca el token de todo el equipo. Usa el token de `.env`, en `Authorization: Bearer <token>`.
-- `POST /v1/collections` con `reference_code` (único, máximo 100 caracteres), `amount` (1.000 a 12.100.000 COP) y `expiration` en segundos. Responde 201 si es nuevo y 200 si ya existía. El recaudo viene en `data`: `status`, `qr` (PNG en base64 con prefijo `data:`), `breb_key`, `qr_expires_at` y `collected_at`.
+- `POST /v1/collections` con `reference_code` (único, máximo 100 caracteres), `amount` (10.000 a 12.000.000 COP, probado en el sandbox; la documentación dice otra cosa) y `expiration` en segundos. Responde 200 o 201 con el recaudo en `data`: `status`, `qr` (PNG en base64 con prefijo `data:`), `breb_key`, `qr_expires_at` y `collected_at`. Las fechas llegan en hora de Colombia, como `04-11-2026 12:00:40 PM`.
 - `GET /v1/collections/{reference_code}`. Responde 404 si no existe.
 - El cliente paga escaneando el QR o pegando la llave Bre-B en su banco, con el monto exacto. La llave es de un solo uso y no acepta pagos parciales.
 - No hay reversos: una devolución se hace por fuera.
-- Un QR vencido se renueva con la misma referencia, el mismo monto y otro `expiration`.
+- Un QR vencido sigue en `ready`: compara `qr_expires_at` con la hora actual. Se renueva con la misma referencia, el mismo monto y otro `expiration`.
 - Webhook: se registra en el panel una URL HTTPS y una llave. Llega un POST con `?key=<llave>` y el recaudo en `data`, con `payer` opcional. Compara la llave en tiempo constante, responde 2xx en menos de 10 segundos y confirma con `GET` antes de facturar. Si no recibe 2xx, Factus Pay hace hasta 6 intentos en total, con esperas de 1 minuto a 3 horas.
-- Simulador: https://pay-api-sandbox.factus.com.co/simulator. Escanea el QR con la cámara y deja elegir el escenario, así que necesitas otro dispositivo para mostrar el QR.
+- Simulador: https://pay-api-sandbox.factus.com.co/simulator. Solo funciona escaneando el QR con la cámara, y deja elegir el escenario. Necesitas otro dispositivo para mostrar el QR.
