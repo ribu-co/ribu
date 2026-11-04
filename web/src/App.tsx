@@ -8,7 +8,8 @@ import { PaginaMesero } from './personal/PaginaMesero'
 import { coincidir, usarRuta } from './ruta'
 import { Cargando, Vacio } from './ui/Estados'
 
-// Quien llega por un sticker no descarga el panel de la plataforma.
+// Quien llega por un sticker no descarga los paneles.
+const PaginaAdmin = lazy(() => import('./admin/PaginaAdmin').then((m) => ({ default: m.PaginaAdmin })))
 const PaginaPlataforma = lazy(() => import('./plataforma/PaginaPlataforma').then((m) => ({ default: m.PaginaPlataforma })))
 
 export function App() {
@@ -26,6 +27,15 @@ export function App() {
     return (
       <Suspense fallback={<main className="pagina"><Cargando /></main>}>
         <PaginaPlataforma />
+      </Suspense>
+    )
+  }
+
+  const admin = coincidir('/admin/:restauranteId', ruta)
+  if (admin || coincidir('/admin', ruta)) {
+    return (
+      <Suspense fallback={<main className="pagina"><Cargando /></main>}>
+        <PaginaAdmin key={admin?.restauranteId ?? ''} restauranteId={admin?.restauranteId ?? null} />
       </Suspense>
     )
   }
