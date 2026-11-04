@@ -165,6 +165,8 @@ export const ESTADO_HTTP_POR_ERROR: Record<CodigoError, number> = {
   MESA_CON_SALDO: 409,
   FACTURA_NO_DISPONIBLE: 409,
   NOTA_EXCEDE_FACTURA: 409,
+  CORREO_EN_USO: 409,
+  RESTAURANTE_INACTIVO: 409,
   MONTO_FUERA_DE_RANGO: 422,
   PROPINA_INVALIDA: 422,
   COMPRADOR_INVALIDO: 422,
@@ -204,4 +206,5 @@ export const rutas = {
   pagos: (restauranteId: string) => `restaurantes/${restauranteId}/pagos`,
   facturas: (restauranteId: string) => `restaurantes/${restauranteId}/facturas`,
   notas: (restauranteId: string) => `restaurantes/${restauranteId}/notas`,
+  personal: (restauranteId: string) => `restaurantes/${restauranteId}/personal`,
 }

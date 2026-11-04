@@ -5,3 +5,10 @@ dist/
 *.log
 .DS_Store
 .firebase/
+functions/lib/
+functions/node_modules/
+*.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.credenciales-demo.*

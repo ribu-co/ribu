@@ -6,8 +6,12 @@ export type Fecha = string
 /** Pesos colombianos enteros. Incluyen impuesto, salvo que el nombre diga lo contrario. */
 export type Pesos = number
 
-export const ROLES = ['cliente', 'mesero', 'cocina', 'admin'] as const
+export const ROLES = ['cliente', 'mesero', 'cocina', 'admin', 'plataforma'] as const
 export type Rol = (typeof ROLES)[number]
+
+/** Lo que puede tener el personal de un restaurante. `plataforma` es de quien administra Ribu. */
+export const ROLES_PERSONAL = ['mesero', 'cocina', 'admin'] as const
+export type RolPersonal = (typeof ROLES_PERSONAL)[number]
 
 // Restaurante y carta
 
@@ -27,6 +31,49 @@ export interface Restaurante {
   impuesto: Impuesto
   /** Porcentajes que se ofrecen al pagar. Ninguno supera PROPINA_SUGERIDA_MAXIMA. */
   propinasSugeridas: number[]
+  /** Un restaurante inactivo no recibe pedidos ni pagos, pero conserva su historia. */
+  activo: boolean
+}
+
+export interface NuevoRestaurante {
+  nombre: string
+  impuesto: Impuesto
+  propinasSugeridas: number[]
+  /** Cuántas mesas crear, numeradas desde 1. */
+  mesas: number
+}
+
+export type CambiosRestaurante = Partial<Pick<Restaurante, 'nombre' | 'impuesto' | 'propinasSugeridas' | 'activo'>>
+
+export interface RestauranteCreado {
+  restaurante: Restaurante
+  mesas: Mesa[]
+}
+
+/** Una cuenta del personal. La clave y los claims viven en Firebase Authentication. */
+export interface Personal {
+  uid: string
+  restauranteId: string
+  correo: string
+  nombre: string
+  rol: RolPersonal
+  /** Sin acceso cuando es false; no se borra para conservar la historia. */
+  activo: boolean
+  creadoEn: Fecha
+}
+
+export interface NuevoPersonal {
+  correo: string
+  nombre: string
+  rol: RolPersonal
+  clave: string
+}
+
+export interface CambiosPersonal {
+  nombre?: string
+  rol?: RolPersonal
+  activo?: boolean
+  clave?: string
 }
 
 export interface Producto {
@@ -443,6 +490,11 @@ export interface SolicitudDivision {
   partes: number
 }
 
+export interface SolicitudMesas {
+  /** Cuántas mesas agregar, con los números siguientes. */
+  cantidad: number
+}
+
 export interface SolicitudPago {
   destino: DestinoPago
   /** Entero de 0 a 100. Es obligatorio: la propina es voluntaria y nunca se asume. */
@@ -501,6 +553,8 @@ export const CODIGOS_ERROR = [
   'FACTURA_NO_DISPONIBLE',
   'NOTA_INVALIDA',
   'NOTA_EXCEDE_FACTURA',
+  'CORREO_EN_USO',
+  'RESTAURANTE_INACTIVO',
   'SERVICIO_NO_DISPONIBLE',
 ] as const
 export type CodigoError = (typeof CODIGOS_ERROR)[number]
