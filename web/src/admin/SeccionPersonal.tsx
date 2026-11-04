@@ -10,9 +10,10 @@ import { Icono } from '../ui/Icono'
 import { puede, type RolAdmin } from './acceso'
 import { Campo, Confirmar, ETIQUETA_ROL } from './comunes'
 import { CLAVE_MINIMA, enviarPersonal, FORMULARIO_PERSONAL_VACIO, type CampoPersonal, type Errores } from './formularios'
-import { operacionesPersonal, ordenarPersonal, type OperacionesPersonal } from './personal'
+import { ordenarPersonal } from './personal'
 
-function HojaPersonal({ operaciones, restauranteId, alCerrar }: { operaciones: OperacionesPersonal; restauranteId: string; alCerrar: () => void }) {
+function HojaPersonal({ restauranteId, alCerrar }: { restauranteId: string; alCerrar: () => void }) {
+  const fuente = usarFuente()
   const avisos = usarAvisos()
   const [formulario, setFormulario] = useState(FORMULARIO_PERSONAL_VACIO)
   const [errores, setErrores] = useState<Errores<CampoPersonal>>({})
@@ -25,7 +26,7 @@ function HojaPersonal({ operaciones, restauranteId, alCerrar }: { operaciones: O
     setError(null)
     setErrores({})
     setCorreoEnUso(null)
-    const resultado = await enviarPersonal(operaciones, restauranteId, formulario)
+    const resultado = await enviarPersonal(fuente, restauranteId, formulario)
     setEnviando(false)
     if (resultado.estado === 'creado') {
       avisos.exito('Cuenta creada', formulario.nombre.trim())
@@ -108,9 +109,10 @@ export function FilaPersonal({ persona, propia, puedeCambiar, alCambiar, ocupado
   )
 }
 
-function Lista({ operaciones, restauranteId, rol, uid }: { operaciones: OperacionesPersonal; restauranteId: string; rol: RolAdmin; uid: string }) {
+export function SeccionPersonal({ restauranteId, rol, uid }: { restauranteId: string; rol: RolAdmin; uid: string }) {
+  const fuente = usarFuente()
   const avisos = usarAvisos()
-  const lectura = usarLectura<Personal[]>((alCambiar, alFallar) => operaciones.escucharPersonal(restauranteId, alCambiar, alFallar), [operaciones, restauranteId])
+  const lectura = usarLectura<Personal[]>((alCambiar, alFallar) => fuente.escucharPersonal(restauranteId, alCambiar, alFallar), [fuente, restauranteId])
   const [creando, setCreando] = useState(false)
   const [ocupado, setOcupado] = useState<string | null>(null)
 
@@ -122,7 +124,7 @@ function Lista({ operaciones, restauranteId, rol, uid }: { operaciones: Operacio
   async function cambiarAcceso(persona: Personal) {
     setOcupado(persona.uid)
     try {
-      await operaciones.actualizarPersonal(restauranteId, persona.uid, { activo: !persona.activo })
+      await fuente.actualizarPersonal(restauranteId, persona.uid, { activo: !persona.activo })
       avisos.exito(persona.activo ? 'Acceso retirado' : 'Acceso devuelto', persona.nombre)
     } catch (e) {
       avisos.error(e)
@@ -159,16 +161,7 @@ function Lista({ operaciones, restauranteId, rol, uid }: { operaciones: Operacio
           </ul>
         </section>
       )}
-      {creando && <HojaPersonal operaciones={operaciones} restauranteId={restauranteId} alCerrar={() => setCreando(false)} />}
+      {creando && <HojaPersonal restauranteId={restauranteId} alCerrar={() => setCreando(false)} />}
     </div>
   )
-}
-
-export function SeccionPersonal({ restauranteId, rol, uid }: { restauranteId: string; rol: RolAdmin; uid: string }) {
-  const fuente = usarFuente()
-  const [operaciones] = useState(() => operacionesPersonal(fuente))
-  if (!operaciones) {
-    return <Vacio icono="persona" titulo="El personal todavía no está conectado" texto="Esta versión de los datos no trae las cuentas del personal, así que no hay nada que mostrar aquí." />
-  }
-  return <Lista operaciones={operaciones} restauranteId={restauranteId} rol={rol} uid={uid} />
 }

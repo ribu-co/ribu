@@ -3,10 +3,12 @@ import type { Cuenta, Factura, Mesa, Nota, Pago, Producto, Restaurante } from '.
 import { usarFuente, usarLectura, usarSesion } from '../datos/contexto'
 import { navegar } from '../ruta'
 import { Cargando, ErrorVista, Vacio } from '../ui/Estados'
-import { Icono, type NombreIcono } from '../ui/Icono'
+import { Pestanas } from '../ui/Controles'
+import { Icono } from '../ui/Icono'
 import { decidirAcceso, type Acceso, type RolAdmin } from './acceso'
 import { reunir, usarAhora } from './comunes'
 import { Dashboard } from './Dashboard'
+import { armarFilas, porResolver } from './facturacion'
 import { Facturas } from './Facturas'
 import { Mesas } from './Mesas'
 import { Productos } from './Productos'
@@ -16,12 +18,12 @@ import './admin.css'
 export const SECCIONES = ['dashboard', 'productos', 'personal', 'facturas', 'mesas'] as const
 export type Seccion = (typeof SECCIONES)[number]
 
-const MENU: Record<Seccion, { texto: string; icono: NombreIcono }> = {
-  dashboard: { texto: 'Dashboard', icono: 'tienda' },
-  productos: { texto: 'Productos', icono: 'carta' },
-  personal: { texto: 'Personal', icono: 'persona' },
-  facturas: { texto: 'Facturas y notas', icono: 'recibo' },
-  mesas: { texto: 'Mesas', icono: 'mesa' },
+const TITULOS: Record<Seccion, { pestana: string; titulo: string; texto: string }> = {
+  dashboard: { pestana: 'Resumen', titulo: 'Cómo va el restaurante', texto: 'Lo vendido, cobrado y facturado, en vivo.' },
+  productos: { pestana: 'Productos', titulo: 'La carta', texto: 'Precios, disponibilidad y stock de lo que se pide en las mesas.' },
+  personal: { pestana: 'Personal', titulo: 'El equipo', texto: 'Las cuentas de meseros, cocina y administración.' },
+  facturas: { pestana: 'Facturas', titulo: 'Facturas y notas', texto: 'Cada pago con su factura, y las correcciones con nota crédito o débito.' },
+  mesas: { pestana: 'Mesas', titulo: 'Los stickers', texto: 'El link y el QR de cada mesa.' },
 }
 
 /** La sección vive en el `#` de la dirección: recargar no te saca de donde estabas. */
@@ -64,6 +66,11 @@ function Panel({ restauranteId, rol, uid }: { restauranteId: string; rol: RolAdm
   const mesas = usarLectura<Mesa[]>((a, f) => fuente.escucharMesas(restauranteId, a, f), [fuente, restauranteId])
   const datos = useMemo(() => reunir({ pagos, facturas, notas, cuentas, productos }), [pagos, facturas, notas, cuentas, productos])
 
+  const porResolverTotal = useMemo(() => {
+    if (pagos.estado !== 'listo' || facturas.estado !== 'listo' || notas.estado !== 'listo') return undefined
+    return armarFilas(pagos.valor, facturas.valor, notas.valor, []).filter(porResolver).length
+  }, [pagos, facturas, notas])
+
   function ir(destino: Seccion) {
     setSeccion(destino)
     history.replaceState(null, '', `#${destino}`)
@@ -97,31 +104,40 @@ function Panel({ restauranteId, rol, uid }: { restauranteId: string; rol: RolAdm
     )
   }
 
+  const nombre = restaurante.valor.nombre
   return (
-    <div className="admin">
-      <header className="admin__cabecera">
+    <main className="pagina admin">
+      <header className="cabecera">
         <div className="marca">
           <span className="marca__logo" aria-hidden="true">
             <span />
           </span>
-          <span className="marca__nombre">{restaurante.valor.nombre}</span>
+          <span className="marca__nombre">{nombre}</span>
         </div>
-        <span className="pastilla">{rol === 'plataforma' ? 'Plataforma' : 'Administración'}</span>
-        <button className="icono-boton" aria-label="Salir" onClick={salir}>
-          <Icono nombre="salir" tamano={18} />
-        </button>
+        <div className="admin__sesion">
+          <span className="pastilla">{rol === 'plataforma' ? 'Plataforma' : 'Admin'}</span>
+          <button className="icono-boton" aria-label="Salir" onClick={salir}>
+            <Icono nombre="salir" tamano={18} />
+          </button>
+        </div>
       </header>
 
-      <nav className="admin__menu" aria-label="Secciones">
-        {SECCIONES.map((nombre) => (
-          <button key={nombre} className="admin__opcion" aria-current={seccion === nombre ? 'page' : undefined} onClick={() => ir(nombre)}>
-            <Icono nombre={MENU[nombre].icono} tamano={18} />
-            <span>{MENU[nombre].texto}</span>
-          </button>
-        ))}
-      </nav>
+      <section className="hero">
+        <p className="hero__etiqueta">{rol === 'plataforma' ? 'Administración, desde la plataforma' : 'Administración'}</p>
+        <h1 className="hero__titulo">{TITULOS[seccion].titulo}</h1>
+        <p className="hero__texto">{TITULOS[seccion].texto}</p>
+      </section>
 
-      <main className="admin__contenido">
+      <div className="barra-pestanas admin__barra">
+        <Pestanas
+          etiqueta="Secciones"
+          valor={seccion}
+          alCambiar={ir}
+          opciones={SECCIONES.map((valor) => ({ valor, texto: TITULOS[valor].pestana, insignia: valor === 'facturas' ? porResolverTotal : undefined }))}
+        />
+      </div>
+
+      <div className="admin__contenido">
         {!restaurante.valor.activo && (
           <p className="aviso aviso--ambar admin__inactivo">
             <Icono nombre="alerta" tamano={18} /> <span>Este restaurante está inactivo: no recibe pedidos ni pagos, pero conserva su historia.</span>
@@ -134,8 +150,8 @@ function Panel({ restauranteId, rol, uid }: { restauranteId: string; rol: RolAdm
           {seccion === 'facturas' && <Facturas pagos={pagos} facturas={facturas} notas={notas} mesas={mesas} rol={rol} />}
           {seccion === 'mesas' && <Mesas mesas={mesas} origen={location.origin} />}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   )
 }
 

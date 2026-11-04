@@ -22,9 +22,8 @@ import {
 } from '../../../contratos/tipos'
 import { armarComprador } from '../cliente/HojaPagar'
 import { compradorValido, correoValido } from '../datos/comprador'
-import { comoErrorDatos } from '../datos/fuente'
+import { comoErrorDatos, type FuenteDatos } from '../datos/fuente'
 import { pesos } from '../ui/formato'
-import type { OperacionesPersonal } from './personal'
 
 export type Errores<Campo extends string> = Partial<Record<Campo, string>>
 
@@ -128,7 +127,7 @@ export type ResultadoPersonal =
   | { estado: 'error'; error: unknown }
 
 export async function enviarPersonal(
-  operaciones: Pick<OperacionesPersonal, 'crearPersonal'>,
+  operaciones: Pick<FuenteDatos, 'crearPersonal'>,
   restauranteId: string,
   formulario: FormularioPersonal,
 ): Promise<ResultadoPersonal> {

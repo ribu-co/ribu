@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Comprador, Personal, Producto, ResumenNota } from '../../../contratos/tipos'
-import { ErrorDatos, type FuenteDatos } from '../datos/fuente'
+import { ErrorDatos } from '../datos/fuente'
 import { crearFuenteMemoria } from '../datos/memoria'
 import { CLAVE_DEMO } from '../datos/semilla'
 import {
@@ -18,7 +18,7 @@ import {
   type FormularioNota,
   type FormularioProducto,
 } from './formularios'
-import { operacionesPersonal, ordenarPersonal } from './personal'
+import { ordenarPersonal } from './personal'
 
 const producto: Producto = {
   id: 'agua',
@@ -108,18 +108,15 @@ describe('personal', () => {
     expect(enviados).toEqual([['r', { correo: 'nuevo@ribu.demo', nombre: 'Ana', rol: 'cocina', clave: '12345678' }]])
   })
 
-  test('sin las operaciones en la fuente no hay sección; con ellas conservan su `this`', async () => {
-    expect(operacionesPersonal({} as FuenteDatos)).toBeNull()
-    const fuente = {
-      prefijo: 'r:',
-      escucharPersonal: () => () => {},
-      crearPersonal(this: { prefijo: string }, restauranteId: string) {
-        return Promise.resolve({ restauranteId: this.prefijo + restauranteId })
-      },
-      actualizarPersonal: async () => ({}),
-    } as unknown as FuenteDatos
-    const operaciones = operacionesPersonal(fuente)
-    await expect(operaciones?.crearPersonal('x', {} as never)).resolves.toEqual({ restauranteId: 'r:x' })
+  test('contra la fuente en memoria: crea, avisa CORREO_EN_USO y desactiva', async () => {
+    const fuente = crearFuenteMemoria()
+    await fuente.entrarPersonal('admin@ribu.demo', CLAVE_DEMO)
+    expect(await enviarPersonal(fuente, 'fogon-del-manglar', valido)).toEqual({ estado: 'creado' })
+    expect(await enviarPersonal(fuente, 'fogon-del-manglar', valido)).toEqual({ estado: 'correo_en_uso' })
+    expect(await enviarPersonal(fuente, 'fogon-del-manglar', { ...valido, correo: 'admin@ribu.demo' })).toEqual({ estado: 'correo_en_uso' })
+    const nueva = fuente.estado().personal.find((p) => p.correo === 'nuevo@ribu.demo')
+    const desactivada = await fuente.actualizarPersonal('fogon-del-manglar', nueva!.uid, { activo: false })
+    expect(desactivada.activo).toBe(false)
   })
 
   test('primero los activos, por nombre', () => {
@@ -138,7 +135,7 @@ describe('corregir el comprador', () => {
   })
 
   test('con cambios envía el comprador corregido', () => {
-    expect(solicitudReintento(empresa, 'empresa', { ...datosDeComprador(empresa), nit: '900-555-111' })).toEqual({
+    expect(solicitudReintento(empresa, 'empresa', { ...datosDeComprador(empresa), nit: '900555111' })).toEqual({
       comprador: { tipo: 'empresa', nit: '900555111', razonSocial: 'Manglar SAS', correo: 'a@b.co' },
     })
   })

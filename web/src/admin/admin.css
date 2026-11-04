@@ -1,86 +1,33 @@
 /* Administración: blanco y negro, rellenos sólidos. Solo usa las variables de estilos.css. */
 
 .admin {
-  --ancho-menu: 232px;
-  min-height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr;
-  grid-template-areas: 'cabecera' 'menu' 'contenido';
-  background: var(--fondo);
+  max-width: 1120px;
 }
 
-.admin__cabecera {
-  grid-area: cabecera;
+.admin__sesion {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px 10px;
+  gap: 8px;
+  flex: none;
 }
 
-.admin__cabecera .marca {
-  flex: 1;
-}
-
-.admin__cabecera .marca__nombre {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.admin__menu {
-  grid-area: menu;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  gap: 6px;
-  padding: 8px 16px;
+/* Las mismas pestañas de la mesa. En un celular angosto se deslizan en vez de apretar el texto. */
+.admin__barra {
   overflow-x: auto;
   scrollbar-width: none;
-  background: var(--fondo);
-  border-bottom: 1px solid var(--borde);
 }
 
-.admin__menu::-webkit-scrollbar {
+.admin__barra::-webkit-scrollbar {
   display: none;
 }
 
-.admin__opcion {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: var(--radio-s);
-  color: var(--tinta-2);
-  font-weight: 600;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  transition:
-    background-color 160ms ease-out,
-    color 160ms ease-out,
-    transform 160ms ease-out;
-}
-
-.admin__opcion:active {
-  transform: scale(0.97);
-}
-
-.admin__opcion[aria-current='page'] {
-  background: var(--tinta);
-  color: var(--superficie);
-  font-weight: 800;
+.admin__barra .pestanas {
+  min-width: 480px;
+  max-width: 640px;
 }
 
 .admin__contenido {
-  grid-area: contenido;
   min-width: 0;
-  width: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 16px 16px calc(64px + var(--seguro-abajo));
 }
 
 .admin__inactivo {
@@ -535,34 +482,8 @@
   overflow-wrap: anywhere;
 }
 
-/* Escritorio: el menú pasa a la izquierda y el tablero a dos columnas. */
+/* Escritorio: más columnas, la misma página. */
 @media (min-width: 900px) {
-  .admin {
-    grid-template-columns: var(--ancho-menu) minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    grid-template-areas:
-      'cabecera cabecera'
-      'menu contenido';
-  }
-
-  .admin__cabecera {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--borde);
-  }
-
-  .admin__menu {
-    top: 16px;
-    align-self: start;
-    flex-direction: column;
-    padding: 16px;
-    border-bottom: 0;
-    overflow: visible;
-  }
-
-  .admin__contenido {
-    padding: 24px 24px 64px;
-  }
-
   .admin-tablero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -578,13 +499,6 @@
 
   .admin-cifras__principal {
     grid-column: auto;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .admin__opcion:not([aria-current='page']):hover {
-    background: var(--superficie-2);
-    color: var(--tinta);
   }
 }
 

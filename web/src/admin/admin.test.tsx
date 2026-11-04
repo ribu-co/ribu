@@ -10,7 +10,7 @@ import { Facturas, FilaNota, TarjetaPago } from './Facturas'
 import { linkDeMesa, Mesas } from './Mesas'
 import { PaginaAdmin, seccionDeHash, SinAcceso } from './PaginaAdmin'
 import { agruparPorCategoria, Productos } from './Productos'
-import { FilaPersonal, SeccionPersonal } from './SeccionPersonal'
+import { FilaPersonal } from './SeccionPersonal'
 
 const pintar = (elemento: React.ReactNode) =>
   renderToStaticMarkup(
@@ -221,10 +221,6 @@ describe('x-roles en la pantalla', () => {
 
 describe('personal', () => {
   const persona = (p: Partial<Personal> = {}): Personal => ({ uid: 'u2', restauranteId: 'r', correo: 'a@b.co', nombre: 'Ana', rol: 'cocina', activo: true, creadoEn: '2026-11-04T17:00:00Z', ...p })
-
-  test('si la fuente no trae las operaciones, lo dice y no inventa una lista', () => {
-    expect(pintar(<SeccionPersonal restauranteId="r" rol="admin" uid="u" />)).toContain('El personal todavía no está conectado')
-  })
 
   test('nadie se quita el acceso a sí mismo', () => {
     const fila = (p: Parameters<typeof FilaPersonal>[0]) => pintar(<ul><FilaPersonal {...p} /></ul>)
