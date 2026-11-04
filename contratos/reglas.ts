@@ -17,9 +17,9 @@ import type {
   TipoNota,
 } from './tipos'
 
-export const MONTO_MINIMO_COBRO = 1_000
-export const MONTO_MAXIMO_COBRO = 12_100_000
-/** POR CONFIRMAR en el sandbox: el mínimo que acepta `expiration`. */
+// Probado en el sandbox: la documentación dice 1.000 a 12.100.000, pero la API responde 422 fuera de este rango.
+export const MONTO_MINIMO_COBRO = 10_000
+export const MONTO_MAXIMO_COBRO = 12_000_000
 export const COBRO_EXPIRACION_SEGUNDOS = 600
 /** Respaldo del webhook: cada cuánto consulta la web mientras muestra un cobro activo. */
 export const CONSULTA_COBRO_SEGUNDOS = 5

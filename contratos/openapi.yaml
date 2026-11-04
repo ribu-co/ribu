@@ -463,7 +463,7 @@ components:
     MedioPago: { type: string, enum: [factus_pay, efectivo, tarjeta_debito, tarjeta_credito] }
     EstadoPago: { type: string, enum: [esperando_pago, pagado, vencido, cancelado, fallido] }
     IncidenciaPago: { type: string, enum: [pago_duplicado] }
-    EstadoCobro: { type: string, enum: [started, ready, paid, failed, rejected, desconocido] }
+    EstadoCobro: { type: string, enum: [started, created, ready, paid, failed, rejected, desconocido] }
     TipoDocumento: { type: string, enum: [CC, CE, NIT, PASAPORTE, PPT] }
     EstadoFactura: { type: string, enum: [sin_emitir, en_proceso, en_validacion, emitida, rechazada] }
     EstadoCorreo: { type: string, enum: [sin_correo, pendiente, enviado, fallido] }
