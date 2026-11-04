@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { PaginaMesa } from './cliente/PaginaMesa'
+import { Creditos } from './Creditos'
 import { Inicio } from './Inicio'
 import { PaginaMesaMesero } from './personal/MesaDetalle'
 import { PaginaCocina } from './personal/PaginaCocina'
@@ -18,6 +19,7 @@ export function App() {
   const mesa = coincidir('/m/:token', ruta)
   if (mesa) return <PaginaMesa key={mesa.token} token={mesa.token as string} />
   if (ruta === '/') return <Inicio />
+  if (ruta === '/creditos') return <Creditos />
   if (ruta === '/personal') return <PaginaEntrada />
   if (ruta === '/mesero') return <PaginaMesero />
   const mesaDelMesero = coincidir('/mesero/:token', ruta)

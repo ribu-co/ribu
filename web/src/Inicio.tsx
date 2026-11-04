@@ -34,6 +34,9 @@ export function Inicio() {
           <MesasDemo />
         </Suspense>
       )}
+      <p className="ayuda">
+        <a href="/creditos">Créditos de las fotos</a>
+      </p>
     </main>
   )
 }

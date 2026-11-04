@@ -1,6 +1,6 @@
 # Datos de la demo
 
-Integración carga estos datos con el script de datos iniciales. Todo es inventado: el restaurante no existe y los precios no salen de ninguna carta real. El sandbox de Factus es público, así que aquí no va ningún dato real.
+Integración carga estos datos con el script de datos iniciales. El restaurante es inventado y los precios no salen de ninguna carta real. El sandbox de Factus es público, así que aquí no va ningún dato real del negocio. Las fotos sí son reales: vienen de Wikimedia Commons, con autor y licencia en `web/public/platos/CREDITOS.md` y en la página `/creditos`.
 
 Antes de elegir el nombre se buscó en la web y no apareció un restaurante con ese nombre. Conviene revisar también en Google Maps.
 
@@ -12,8 +12,14 @@ Antes de elegir el nombre se buscó en la web y no apareció un restaurante con 
 | `nombre` | Fogón del Manglar |
 | `impuesto` | `{ tipo: 'INC', porcentaje: 8 }` |
 | `propinasSugeridas` | `[0, 5, 8, 10]` |
+| `vitrina.fotoUrl` | `/restaurantes/fogon-del-manglar.jpg` |
+| `vitrina.ubicacion` | Montería |
+| `vitrina.mapaUrl` | Búsqueda de Montería en Google Maps |
+| `vitrina.instagramUrl` | `https://instagram.com/fogondelmanglar` |
 
 El 0 deja a la vista la opción de no dar propina, que es voluntaria. Ningún valor supera `PROPINA_SUGERIDA_MAXIMA`.
+
+La vitrina vive en Firestore y la mesa oculta lo que venga en `null`. Si el restaurante ya existía sin ella, la semilla se la agrega. La cuenta de Instagram es inventada: conviene revisar que no sea de alguien.
 
 ## Mesas
 
@@ -29,7 +35,7 @@ Una cuenta por rol: `mesero`, `cocina` y `admin`. Los correos y las claves no va
 
 ## Carta
 
-`precio` es el precio final, con INC del 8 % incluido. Todos los productos tienen `disponible: true` e `imagenUrl: null`. La columna "Base sin INC" no se carga: es lo que debe dar `baseSinImpuesto`, para poder comparar.
+`precio` es el precio final, con INC del 8 % incluido. Todos los productos tienen `disponible: true` e `imagenUrl: /platos/<id>.jpg`. La columna "Base sin INC" no se carga: es lo que debe dar `baseSinImpuesto`, para poder comparar.
 
 | `id` | `nombre` | `categoria` | `precio` | Base sin INC | `stock` | `descripcion` |
 |---|---|---|---:|---:|---:|---|
