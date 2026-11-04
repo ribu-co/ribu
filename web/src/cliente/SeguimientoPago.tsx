@@ -56,6 +56,11 @@ export function DetallePago({
   alVolver: () => void
   alReintentar: (pago: Pago) => void
 }) {
+  const fuente = usarFuente()
+  // Un QR vencido o cancelado puede terminar pagado: mientras esta pantalla siga abierta, se sigue consultando.
+  const aunPuedeEntrar = valor.cobro !== null && (valor.estado === 'vencido' || valor.estado === 'cancelado' || valor.estado === 'fallido')
+  usarConsultaCobro(aunPuedeEntrar, () => fuente.verificarPago(token, valor.id))
+
   if (valor.estado === 'esperando_pago') return <VistaCobro token={token} pago={valor} />
   if (valor.estado === 'pagado' && valor.incidencia === 'pago_duplicado') {
     return (
@@ -85,7 +90,7 @@ export function DetallePago({
         </Boton>
       }
     >
-      No se cobró nada. Lo que cubría vuelve a quedar libre en la cuenta.
+      Lo que cubría volvió a quedar libre en la cuenta. Si alcanzaste a pagar, no pagues de nuevo: esta pantalla se actualiza sola cuando el banco confirme.
     </Resultado>
   )
 }

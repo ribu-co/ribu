@@ -110,7 +110,7 @@ test('un pago duplicado no se esconde: se explica la devolución', () => {
 test('un cobro vencido ofrece generar otro', () => {
   const html = detalle(pago({ estado: 'vencido' }))
   expect(html).toContain('El QR venció')
-  expect(html).toContain('No se cobró nada')
+  expect(html).toContain('no pagues de nuevo')
   expect(html).toContain('Generar otro cobro')
 })
 
@@ -178,4 +178,10 @@ test('el cobro de otra persona se ve, pero sin abrirlo', () => {
   expect(html).toContain('Alguien de la mesa está pagando $56.400')
   expect(html).toMatch(/<button class="pago-fila" disabled=""/)
   expect(html).toContain('Otra persona')
+})
+
+test('un QR vencido no asegura que no se cobró nada', () => {
+  const html = detalle(pago({ estado: 'vencido' }))
+  expect(html).not.toContain('No se cobró nada')
+  expect(html).toContain('no pagues de nuevo')
 })
