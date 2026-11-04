@@ -138,7 +138,7 @@ export type EstadoPago = (typeof ESTADOS_PAGO)[number]
 export const INCIDENCIAS_PAGO = ['pago_duplicado'] as const
 export type IncidenciaPago = (typeof INCIDENCIAS_PAGO)[number]
 
-export const ESTADOS_COBRO = ['started', 'ready', 'paid', 'failed', 'rejected', 'desconocido'] as const
+export const ESTADOS_COBRO = ['started', 'created', 'ready', 'paid', 'failed', 'rejected', 'desconocido'] as const
 /** `desconocido` es cualquier otro estado de Factus Pay: no detiene las consultas. */
 export type EstadoCobro = (typeof ESTADOS_COBRO)[number]
 
@@ -150,6 +150,7 @@ export interface Cobro {
   qrBase64: string | null
   /** Para pagar desde el mismo celular: se copia y se pega en el banco, con el monto exacto. */
   llaveBreB: string | null
+  /** Un QR vencido sigue en `ready`: el vencimiento se mira con esta fecha. */
   qrExpiraEn: Fecha | null
   recaudadoEn: Fecha | null
 }
@@ -289,7 +290,6 @@ export type EstadoDevolucion = (typeof ESTADOS_DEVOLUCION)[number]
 
 export interface DatosNota {
   numero: string
-  /** POR CONFIRMAR en el sandbox: el nombre de este campo en la respuesta de Factus. */
   cude: string
   qrUrl: string
   urlPublica: string

@@ -8,6 +8,8 @@ import {
   CODIGO_CORRECCION_NOTA_DEBITO,
   ErrorIntegracion,
   lineaSuma,
+  MONTO_MAXIMO_COBRO,
+  MONTO_MINIMO_COBRO,
   propinaValida,
   puedeLiberarMesa,
   puedePasar,
@@ -186,6 +188,11 @@ test('las rutas de Firestore cuelgan del restaurante', () => {
   expect(rutas.paginaMesa('abc')).toBe('/m/abc')
   expect(rutas.facturas('r-1')).toBe('restaurantes/r-1/facturas')
   expect(rutas.notas('r-1')).toBe('restaurantes/r-1/notas')
+})
+
+test('los límites de cobro son los que acepta el sandbox de Factus Pay', () => {
+  expect(MONTO_MINIMO_COBRO).toBe(10_000)
+  expect(MONTO_MAXIMO_COBRO).toBe(12_000_000)
 })
 
 test('los conceptos de las notas usan los códigos de corrección de Factus', () => {
