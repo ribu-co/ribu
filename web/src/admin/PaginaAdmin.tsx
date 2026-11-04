@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Cuenta, Factura, Mesa, Nota, Pago, Producto, Restaurante } from '../../../contratos/tipos'
 import { usarFuente, usarLectura, usarSesion } from '../datos/contexto'
 import { navegar } from '../ruta'
@@ -56,6 +56,12 @@ function Panel({ restauranteId, rol, uid }: { restauranteId: string; rol: RolAdm
   const fuente = usarFuente()
   const ahora = usarAhora()
   const [seccion, setSeccion] = useState<Seccion>(() => seccionDeHash(location.hash))
+
+  useEffect(() => {
+    const alCambiar = () => setSeccion(seccionDeHash(location.hash))
+    window.addEventListener('hashchange', alCambiar)
+    return () => window.removeEventListener('hashchange', alCambiar)
+  }, [])
 
   const restaurante = usarLectura<Restaurante | null>((a, f) => fuente.escucharRestaurante(restauranteId, a, f), [fuente, restauranteId])
   const pagos = usarLectura<Pago[]>((a, f) => fuente.escucharPagos(restauranteId, a, f), [fuente, restauranteId])

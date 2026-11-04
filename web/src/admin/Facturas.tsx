@@ -310,7 +310,6 @@ export function Facturas({
   return (
     <div className="admin-seccion">
       <div className="admin-seccion__cabeza">
-        <h2 className="tarjeta__titulo">Facturas y notas</h2>
         <div className="admin-periodo">
           <Pestanas
             etiqueta="Filtrar"

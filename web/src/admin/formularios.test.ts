@@ -196,5 +196,8 @@ describe('notas', () => {
     const nota = await fuente.crearNota(pago.id, leida.solicitud)
     expect(nota).toMatchObject({ tipo: 'credito', total: 10_000, devolucion: 'pendiente', estado: 'emitida' })
     await expect(fuente.crearNota(pago.id, { tipo: 'credito', concepto: 'anulacion', motivo: 'x' })).rejects.toMatchObject({ codigo: 'NOTA_EXCEDE_FACTURA' })
+    // Los PDF que ofrece la pantalla: la factura se pide con la mesa del pago, la nota con su id.
+    expect((await fuente.descargarFacturaPdf(pago.mesaToken, pago.id)).type).toBe('application/pdf')
+    expect((await fuente.descargarNotaPdf(nota.id)).type).toBe('application/pdf')
   })
 })
