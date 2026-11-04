@@ -2,7 +2,7 @@
 
 Entregable del Reto Factus. Explica el problema, la solución, el flujo operativo y el uso técnico de Factus Pay y Factus v2.
 
-**Estado de este documento:** describe el diseño de `contratos/`, corregido con las pruebas en el sandbox del 4 de noviembre de 2026, hechas con datos inventados. En Factus v2, la DIAN validó facturas y notas. En Factus Pay se crearon y consultaron recaudos, sin completar ningún pago. Falta probar el flujo completo en la app desplegada. Lo que sigue abierto está en [Por confirmar](#por-confirmar).
+**Estado de este documento:** describe el diseño de `contratos/` e incorpora las pruebas del sandbox realizadas por Integración el 4 de noviembre de 2026, registradas en el [PR #13](https://github.com/ribu-co/ribu/pull/13) y en `contratos/README.md`. El equipo validó facturas y notas en Factus v2 y comprobó la creación de recaudos en Factus Pay, sin completar ningún pago. Esto todavía no acredita el flujo completo de la app desplegada; lo que sigue abierto está en [Por confirmar](#por-confirmar).
 
 ## 1. El problema
 
@@ -33,7 +33,7 @@ Sigue la opción A del reto: primero el recaudo, después la factura.
 7. **Facturar.** El backend emite la factura y muestra número, CUFE, QR y PDF. Si el comprador dio un correo, se la envía.
 8. **Liberar la mesa.** El mesero la libera cuando no hay pedidos por confirmar, cobros activos ni saldo. El siguiente cliente no ve nada del anterior.
 
-Efectivo y tarjeta no pasan por Factus Pay. Los registra el personal, y también generan factura. Una cuenta o una parte de menos de $10.000 se paga por esta vía, porque Factus Pay no la acepta.
+Efectivo y tarjeta no pasan por Factus Pay. Los registra el personal, y también generan factura.
 
 ## 4. Diagrama del flujo completo
 
@@ -51,7 +51,7 @@ sequenceDiagram
     C->>R: Elige qué paga, propina y comprador
     R->>R: Crea el pago con su id y congela lo que cubre
     R->>P: POST /v1/collections (reference_code = id del pago)
-    P-->>R: 200 o 201 con status, qr, breb_key y qr_expires_at
+    P-->>R: 200 con expiration; 201 sin expiration, con data del recaudo
     R-->>C: Muestra la llave Bre-B, el QR y el monto exacto
     C->>P: Paga con su banco (en la demo, con el simulador)
 
@@ -99,7 +99,7 @@ La asociación no se hace después, ni depende de que alguien cruce extractos: e
 **Qué protege esta decisión:**
 
 - **El webhook se repite.** Puede llegar más de una vez. La factura se emite una sola vez por pago.
-- **Se reintenta la factura.** Con los mismos datos, Factus devuelve la misma factura, como se comprobó en el sandbox. No se duplica. Con un valor distinto puede responder 422, porque primero valida el cuadre.
+- **Se reintenta la factura.** Con una factura ya validada y los mismos datos, Factus devuelve la misma. En el sandbox, un total diferente puede dar 422 porque valida primero el cuadre: el reintento conserva referencia e importes originales.
 - **El pago entra y la factura falla.** Pagar y facturar son estados separados. El pago queda `pagado`, la factura queda `en_proceso` y se reintenta con la misma referencia. El dinero no se pierde de vista.
 - **Se paga un QR que ya se había cancelado.** Factus Pay no documenta cómo cancelar un recaudo y no tiene reversos. Si el dinero entra y lo que cubría sigue libre, el pago vale. Si otro pago ya lo cubrió, queda marcado como `pago_duplicado`, sin factura, y el personal devuelve el dinero por fuera.
 
@@ -113,23 +113,20 @@ Entorno: `https://pay-api-sandbox.factus.com.co`. Lo implementa `ServicioCobros`
 
 | Operación | Uso en Ribu |
 |---|---|
-| `POST /v1/collections` | Crea el recaudo con `reference_code`, `amount` y `expiration`. Ribu usa 600 segundos. En el sandbox responde 200 si se envía `expiration` y 201 si no. El estado HTTP no indica si el recaudo es nuevo. Repetir la referencia con el mismo monto devuelve el mismo recaudo, y con otro monto responde 422 |
+| `POST /v1/collections` | Crea el recaudo con `reference_code`, `amount` y `expiration`. Ribu usa 600 segundos. En el sandbox responde 200 con `expiration` y 201 sin ella; esos códigos no distinguen nuevo de existente |
 | `GET /v1/collections/{reference_code}` | Confirma el estado antes de marcar el pago. Responde 404 si no existe |
 | Webhook | Avisa los recaudos `paid`. Es solo un aviso: nunca se factura sin confirmar con `GET` |
-| Simulador | Confirma el pago en la demo, porque el reto solo permite el sandbox. Solo funciona escaneando el QR con la cámara, así que el QR se muestra en otro dispositivo |
+| Simulador | Confirma el pago en la demo, porque el reto solo permite el sandbox |
 
 **Autorización:** usar el token sandbox que Integración comparte por privado, en `Authorization: Bearer`. No llamar a `POST /auth`: según `AGENTS.md`, revoca el token del equipo.
 
 **Webhook:** la URL se registra en el panel. Factus Pay envía la llave en `?key=` y el recaudo en `data`. El diseño exige comparar la llave en tiempo constante, guardar el aviso de forma durable y responder 2xx en menos de 10 segundos; la emisión se procesa después. No confirmar recepción si no se guardó. Antes de facturar, consultar y comprobar la referencia existente, el monto exacto y `paid`; recibir un webhook no basta. Los avisos repetidos deben procesarse una sola vez. Si no recibe 2xx, Factus Pay hace hasta 6 intentos en total. Estos controles siguen pendientes de comprobar en el backend desplegado.
 
-**QR vencido:** sigue en `ready`, así que el vencimiento se mira comparando `qr_expires_at` con la hora actual. Se renueva con la misma referencia, el mismo monto y otro `expiration`.
-
-**Fechas:** llegan en hora de Colombia, como `04-11-2026 12:00:40 PM`. Ribu las convierte a UTC.
+**QR vencido:** en el sandbox sigue en `ready`, así que se detecta comparando `qr_expires_at` con la hora actual, no solo por el estado. Se renueva con la misma referencia, el mismo monto y otro `expiration`; regenera el QR y conserva la llave Bre-B. Las fechas llegan como `04-11-2026 12:00:40 PM`, en hora de Colombia, y el backend debe convertirlas a UTC.
 
 **Límites que Ribu respeta:**
 
-- El monto va de $10.000 a $12.000.000. Por fuera de ese rango, el sandbox responde 422, aunque la documentación diga de $1.000 a $12.100.000. Una cuenta o una parte menor se paga en efectivo o con tarjeta.
-- El cliente debe pagar exactamente el monto del cobro. La llave es de un solo uso y no admite pagos parciales.
+- El rango probado es de **$10.000 a $12.000.000**; fuera de él, el sandbox responde 422. Difiere del rango publicado en la documentación. Una cuenta o parte menor de $10.000 se paga en efectivo o con tarjeta. El cliente debe pagar el monto exacto y la llave es de un solo uso, sin pagos parciales.
 - Factus Pay no tiene pagos divididos: dividir la cuenta significa crear varios recaudos.
 - Factus Pay no tiene reversos: ver la [sección 9](#9-notas-crédito-y-débito).
 
@@ -139,12 +136,12 @@ Entorno: `https://api-sandbox.factus.com.co`. Lo implementa `ServicioFacturacion
 
 | Operación | Uso en Ribu |
 |---|---|
-| `POST /oauth/token` | Token con datos de formulario. Dura 3.600 segundos y se renueva con `refresh_token` |
-| `GET /v2/numbering-ranges` | Rango activo: documento 21 factura, 22 nota crédito y 23 nota débito. La lista viene en `data.data` |
+| `POST /oauth/token` | Token con datos de formulario. Se renueva con `refresh_token` |
+| `GET /v2/numbering-ranges` | Rango activo: documento 21 factura, 22 nota crédito y 23 nota débito. La lista llega en `data.data`; hay más de un rango de crédito activo, por lo que se envía `numbering_range_id` explícito |
 | `POST /v2/bills/validate` | Emite la factura |
 | `DELETE /v2/bills/destroy/reference/{reference_code}` | Elimina una factura rechazada |
-| `GET /v2/bills/{number}/download-pdf` | El PDF llega en `data.pdf_base_64_encoded` y su nombre en `data.file_name` |
-| `POST /v2/bills/{number}/send-email` | Envía la factura al correo del comprador. En el sandbox responde 422 con correos no autorizados |
+| `GET /v2/bills/{number}/download-pdf` | El PDF llega en `pdf_base_64_encoded` |
+| `POST /v2/bills/{number}/send-email` | Solicita el envío al correo del comprador. En sandbox, direcciones no autorizadas reciben 422; eso no invalida la factura |
 
 **Cómo se arma la factura:**
 
@@ -154,12 +151,12 @@ Entorno: `https://api-sandbox.factus.com.co`. Lo implementa `ServicioFacturacion
 | Precio de carta sin INC | `items[].price` | La carta incluye el INC y Factus pide el precio sin impuesto: lo calcula `baseSinImpuesto` |
 | INC del 8 % | `items[].taxes[]` | `code` `04`, `rate` `8.00` |
 | Propina | `allowance_charges[]` | `concept_type` `03`, `is_surcharge` `true` |
-| Lo que se pagó | `payment_details[]` | Con Factus Pay, `payment_method_code` `47` (transferencia), porque no hay código para Bre-B. Efectivo es `10`, débito `49` y crédito `48`, según las tablas de Factus; estos tres falta probarlos |
-| Redondeo | `cash_rounding_amount` | Cuadra el total con precios de dos decimales. Si `payment_details` no suma el total, responde 422 con el valor esperado |
-| Consumidor final | `customer` | `identification_document_code` `13`, `identification` `222222222222`, `names` "Consumidor Final" y `legal_organization_code` `2` |
-| Empresa | `customer` | Sin dígito de verificación: Factus lo calcula |
+| Lo que se pagó | `payment_details[]` | Con Factus Pay, `payment_method_code` `47` (transferencia), porque no hay código para Bre-B |
+| Consumidor final | `customer` | Probado con documento `13`, `identification` `222222222222`, `names` `Consumidor Final` y organización `2` |
 
-**Probado en el sandbox:** la DIAN validó facturas a consumidor final, a persona y a empresa, con INC `04` y tasa `8.00`, propina, medio de pago `47` y `cash_rounding_amount` de `-0.01`.
+INC `04` con tasa `8.00`, propina y redondeo con `cash_rounding_amount: -0.01` quedaron validados por la DIAN en las pruebas del equipo. Los códigos de medio de pago figuran en las tablas de Factus: efectivo `10`, débito `49`, crédito `48` y transferencia `47`. De estos, se probó `47`; falta probar efectivo y tarjetas en la emisión.
+
+Con `is_validated: true`, `errors` puede contener notificaciones que no bloquean la factura. En facturas es un objeto y en notas un arreglo; no tratar cualquier mensaje como rechazo. El PDF probado llega en `data.file_name` y `data.pdf_base_64_encoded`.
 
 **Ejemplo con los datos de la demo** (`docs/datos-demo.md`):
 
@@ -171,26 +168,23 @@ Entorno: `https://api-sandbox.factus.com.co`. Lo implementa `ServicioFacturacion
 | Propina del 10 %, sobre la base sin INC | 8.500 |
 | **`amount` del recaudo y total de la factura** | **100.300** |
 
-Falta que un contador confirme la base de la propina: ver `contratos/reglas.ts`.
-
 ## 8. Manejo de errores
 
 | Qué pasa | Estado en Ribu | Qué hace |
 |---|---|---|
-| La DIAN rechaza (`is_validated` no es `true` y el texto de `errors` dice "Rechazo") | `rechazada` | La elimina en seguida, porque bloquea el rango. El personal corrige y se reemite con la misma referencia |
-| La DIAN demora (`is_validated` no es `true`, sin rechazo) | `en_validacion` | Reintenta con la misma referencia. Nunca la elimina |
-| `is_validated` es `true` y `errors` trae algo | `emitida` | Son notificaciones, como `FAJ44b` o `CBF02`, que no bloquean nada |
+| La DIAN rechaza (`rechazo` en `errors`) | `rechazada` | La elimina en seguida, porque bloquea el rango. El personal corrige y se reemite con la misma referencia |
+| La DIAN demora | `en_validacion` | Reintenta con la misma referencia. Nunca la elimina |
 | 409 en Factus | `en_proceso` | Hay un documento pendiente bloqueando el rango, y en el sandbox puede ser de otro equipo. Reintenta sin mostrarle un error al cliente |
 | 429 o fallo de red | `en_proceso` | Reintenta y respeta `Retry-After` |
 | Dos personas cobran lo mismo | Error `PAGO_EN_CURSO` | Una misma unidad no puede estar en dos pagos |
-| `qr_expires_at` ya pasó sin pago | `vencido` | Factus Pay sigue mostrando `ready`, así que Ribu compara la fecha. Libera lo que cubría. Si después entra el dinero, aplica la regla de la sección 5 |
-| El cobro es de menos de $10.000 | Error `MONTO_FUERA_DE_RANGO` | No crea el recaudo. Se paga en efectivo o con tarjeta |
-| `send-email` responde 422 en el sandbox | `correo.estado` en `fallido` | La factura sigue bien. El correo no estaba autorizado |
+| El QR vence sin pagar | `vencido` en Ribu | Factus Pay puede seguir en `ready`: se compara `qr_expires_at` convertido a UTC. Libera lo que cubría. Si después entra el dinero, aplica la regla de la sección 5 |
 | Llave de webhook errada | Error `NO_AUTORIZADO` | No procesa nada |
 
 ## 9. Notas crédito y débito
 
 Las crea solo el administrador, y solo sobre una factura `emitida`. No cambian la cuenta de la mesa. Siguen las mismas reglas de rechazo, demora, reintentos, PDF y correo.
+
+El equipo validó anulación, devolución parcial y nota débito en el sandbox. La respuesta incluye `data.number`, `data.cude`, `is_validated`, `errors`, `links.qr`, `links.public_url` y `bill`; el identificador de la nota es **`cude`**. `items.note` no fue obligatorio. Esto comprueba emisión de notas, no una devolución de dinero ni un pago del simulador.
 
 ```mermaid
 flowchart TD
@@ -212,15 +206,13 @@ flowchart TD
 
 **Nota crédito:** anula la factura o rebaja parte de su valor. Factus Pay no tiene reversos, según sus preguntas frecuentes, porque las transferencias van de banco a banco. Por eso el dinero se devuelve por fuera, y la nota queda con la devolución `pendiente` hasta que se registre como `hecha`. Ribu no devuelve el dinero: deja constancia de lo que falta devolver. Una factura no se puede acreditar por más de su valor (`saldoAcreditable`).
 
-**Nota débito:** suma un mayor valor. Con Factus Pay sigue el mismo flujo de la factura: primero el cobro, después la nota. El id de la nota es su `reference_code` en las dos APIs, igual que el id del pago. Por debajo de $10.000, se cobra en efectivo o con tarjeta.
-
-**Probado en el sandbox:** la DIAN validó una anulación, una devolución parcial y una nota débito. La respuesta trae en `data`: `number`, `cude`, `is_validated`, `errors`, `links.qr`, `links.public_url` y `bill`. Falta probar una nota débito cobrada con Factus Pay, porque aún no se ha completado ningún pago.
+**Nota débito:** suma un mayor valor. Con Factus Pay sigue el mismo flujo de la factura: primero el cobro, después la nota. El id de la nota es su `reference_code` en las dos APIs, igual que el id del pago.
 
 | Campo en Factus | Valor |
 |---|---|
 | `bill_number` | El número de la factura que se corrige |
 | `reference_code` | El id de la nota |
-| `numbering_range_id` | El rango activo del documento 22 o 23. Hay dos activos de nota crédito, así que siempre se envía |
+| `numbering_range_id` | El rango activo del documento 22 o 23 |
 | `correction_concept_code` en crédito | `1` devolución parcial, `2` anulación, `3` rebaja, `4` ajuste de precio |
 | `correction_concept_code` en débito | `1` intereses, `2` gastos por cobrar, `3` cambio de valor, `4` otros |
 | `customization_id` en los ejemplos oficiales | `20` en crédito y `30` en débito |
@@ -228,7 +220,7 @@ flowchart TD
 ## 10. Arquitectura y seguridad
 
 - **Web:** React y Vite, en Firebase Hosting.
-- **Backend:** Cloud Functions. Es el único que escribe en Firestore y el único que llama a las dos APIs. Desde `us-central1` las dos responden, aunque solo se comprobó la conexión, sin emitir documentos desde allí.
+- **Backend:** Cloud Functions. Es el único que escribe en Firestore y el único que llama a las dos APIs.
 - **Tiempo real:** la web escucha Firestore, así toda la mesa ve los cambios al instante.
 - **Identidad:** el cliente entra de forma anónima y el personal con login. El rol sale del token de Firebase, no de la pantalla.
 - **Dinero:** la web nunca envía precios, totales ni estados de pago. El backend los calcula.
@@ -237,17 +229,19 @@ flowchart TD
 
 ## Por confirmar
 
-Sale de `contratos/README.md`.
+Los pendientes de integración siguen los resultados y la lista abierta de `contratos/README.md`. Además, la app debe ejecutar el recorrido completo antes de presentarlo como demostrado.
 
 | Tema | Qué falta |
 |---|---|
-| Correo | Qué direcciones autoriza el sandbox. `send-email` responde 422 con correos no autorizados, y sin esto la demo no puede mostrar el envío |
-| Rechazo real | No se forzó a propósito, porque bloquearía el rango de todos los equipos |
-| Sin impuesto | Cómo se envía `ninguno`. La demo usa INC |
-| Pago | Falta completar uno en el simulador. Hay que ver qué trae la respuesta en `paid` y qué estado devuelve cada error: `tx_unknown`, `tx_provider_unavailable`, `tx_timeout` y `tx_risk_control` |
-| Estado `created` | Aparece en el filtro del panel, pero no en la documentación ni en las pruebas |
-| Webhook | Si el simulador lo dispara |
+| Correo | Qué direcciones autoriza el sandbox. Ya se observó 422 con correos no autorizados |
+| Rechazo real | Falta provocarlo y comprobar su eliminación inmediata, coordinándolo para no bloquear el rango compartido |
+| Sin impuesto | Cómo se envía `ninguno`; la demo usa INC |
+| Pago y errores del simulador | Completar un pago simulado, observar `paid` y los escenarios `tx_unknown`, `tx_provider_unavailable`, `tx_timeout` y `tx_risk_control` |
+| Estado `created` | Aparece en el filtro del panel, pero no fue observado en las pruebas |
+| Webhook | Si el simulador lo dispara y cómo se recupera el pago cuando no llega |
 | Parte igual | Que un contador acepte facturarla como una sola línea de consumo |
+
+Efectivo y tarjetas tienen códigos identificados; su prueba de emisión y la ejecución de los recorridos de la app quedan en `docs/casos-de-prueba.md`. Ya están comprobados el sobre `data`, `amount` como número o texto, `expiration` en segundos, las fechas, consumidor final, INC, redondeo y notas con `cude`; no se presentan como dudas pendientes.
 
 ## Fuentes
 
@@ -256,4 +250,5 @@ Consultadas el 4 de noviembre de 2026.
 - [Documentación de Factus v2](https://developers.factus.com.co) y su [colección](https://developers.factus.com.co/collections/api-factus-v2.json).
 - [Preguntas frecuentes de Factus](https://developers.factus.com.co/skills/preguntas-frecuentes-factus.md).
 - [Factus Pay: crear un recaudo](https://pay-developers.factus.com.co/recaudos/crear/), [webhooks](https://pay-developers.factus.com.co/webhooks/), [simulador](https://pay-developers.factus.com.co/sandbox/simulator/) y [preguntas frecuentes](https://pay-developers.factus.com.co/preguntas-frecuentes/).
-- `contratos/README.md`, con lo probado en el sandbox, `contratos/tipos.ts`, `contratos/reglas.ts` y `contratos/openapi.yaml`.
+- `contratos/README.md`, `contratos/tipos.ts`, `contratos/reglas.ts` y `contratos/openapi.yaml`.
+- [Resultados del sandbox documentados por Integración, PR #13](https://github.com/ribu-co/ribu/pull/13), y [revisión de Juan Diego](https://github.com/ribu-co/ribu/pull/2#issuecomment-6637330602). Los resultados citados son del equipo; no son recorridos de la app ejecutados por Producto.
