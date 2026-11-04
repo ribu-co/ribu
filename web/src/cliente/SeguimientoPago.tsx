@@ -12,7 +12,7 @@ import { Hueso, Texto } from '../ui/Esqueletos'
 import { cuentaRegresiva, pesos } from '../ui/formato'
 import { Icono } from '../ui/Icono'
 import { QrImagen, QrTexto } from '../ui/Qr'
-import { FACTURA_EN_CAMINO } from './cuenta'
+import { etiquetaCorreo, FACTURA_EN_CAMINO } from './cuenta'
 import { SimuladorDemo } from './SimuladorDemo'
 import { usarConsultaCobro, usarSegundosRestantes } from './usarConsultaCobro'
 
@@ -307,8 +307,10 @@ export function TarjetaFactura({ token, pago, factura }: { token: string; pago: 
     setEnviando(true)
     setError(null)
     try {
-      await fuente.enviarFacturaPorCorreo(token, pago.id, { correo: correo.trim() })
-      avisos.exito('Factura enviada', correo.trim())
+      const { correo: envio } = await fuente.enviarFacturaPorCorreo(token, pago.id, { correo: correo.trim() })
+      // Con `fallido` no hay aviso: la etiqueta del campo ya dice que no se pudo enviar.
+      if (envio.estado === 'enviado') avisos.exito('Factura enviada', correo.trim())
+      else if (envio.estado === 'pendiente') avisos.exito('Estamos enviando tu factura', correo.trim())
     } catch (e) {
       setError(e)
     } finally {
@@ -347,9 +349,14 @@ export function TarjetaFactura({ token, pago, factura }: { token: string; pago: 
         </a>
       </div>
       <div className="campo">
-        <span className="campo__etiqueta">
-          {factura.correo.estado === 'enviado' ? `Enviada a ${factura.correo.destino}` : 'Envíala a tu correo'}
-        </span>
+        {factura.correo.estado === 'fallido' ? (
+          <p className="aviso aviso--ambar" role="alert">
+            <Icono nombre="alerta" tamano={18} />
+            <span>{etiquetaCorreo(factura.correo)}</span>
+          </p>
+        ) : (
+          <span className="campo__etiqueta">{etiquetaCorreo(factura.correo)}</span>
+        )}
         <div className="entrada-boton">
           <input className="entrada" type="email" inputMode="email" placeholder="tu@correo.com" value={correo} onChange={(e) => setCorreo(e.target.value)} />
           <Boton cargando={enviando} disabled={!correoValido(correo)} onClick={enviar} aria-label="Enviar la factura">

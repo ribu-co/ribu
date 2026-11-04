@@ -185,3 +185,20 @@ test('un QR vencido no asegura que no se cobró nada', () => {
   expect(html).not.toContain('No se cobró nada')
   expect(html).toContain('no pagues de nuevo')
 })
+
+test('un correo que falló no aparece como enviado', () => {
+  const html = pintar(
+    <TarjetaFactura
+      token="demo-mesa-3"
+      pago={pago({ estado: 'pagado', estadoFactura: 'emitida' })}
+      factura={factura({
+        estado: 'emitida',
+        datos: { numero: 'SETP1', cufe: 'abc', qrUrl: 'https://dian.test/q', urlPublica: 'https://dian.test/p' },
+        correo: { estado: 'fallido', destino: 'ana@ejemplo.co', ultimoError: 'detalle interno', enviadoEn: null },
+      })}
+    />,
+  )
+  expect(html).toContain('No pudimos enviarla a ana@ejemplo.co')
+  expect(html).not.toContain('Enviada a')
+  expect(html).not.toContain('detalle interno')
+})
