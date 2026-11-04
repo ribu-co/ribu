@@ -4,6 +4,12 @@ Pedidos, pagos y facturación electrónica de un restaurante desde la mesa. Cada
 
 Proyecto del Reto Factus, API WARS Montería.
 
+**App desplegada:** https://ribu-co.web.app. Corre con las APIs de sandbox de Factus v2 y Factus Pay, sin dinero real. El restaurante y sus datos son inventados.
+
+- [Mesa de ejemplo](https://ribu-co.web.app/m/7a7dd957f230f6e396d7efe902c2bf26): la página que abre el sticker.
+- [Personal](https://ribu-co.web.app/personal): entrada de mesero, cocina y administrador.
+- [Plataforma](https://ribu-co.web.app/plataforma): panel para agregar y gestionar restaurantes.
+
 ## Integrantes
 
 - Juan Diego Díaz Avendaño: Integración
@@ -12,14 +18,31 @@ Proyecto del Reto Factus, API WARS Montería.
 - Néstor Junior Hernández López: Cobros
 - Eddy Lans: Producto y pitch
 
+## Cómo funciona
+
+`pedido → confirmación del mesero → cobro con Factus Pay → pago confirmado → factura electrónica con Factus v2`
+
+- **Web (`web/`):** React y Vite, en Firebase Hosting. Lee en vivo de Firestore y envía las órdenes a la API.
+- **API (`flujo/`):** Hono en Cloud Functions. Es lo único que escribe datos y lo único que tiene las credenciales.
+- **Factus Pay (`cobros/`):** crea el recaudo con su QR y confirma el pago. El webhook avisa, pero el pago siempre se confirma consultando la API.
+- **Factus v2 (`facturacion/`):** emite la factura, las notas crédito y débito, y descarga el PDF.
+- **Asociación:** el id del pago es el `reference_code` en Factus Pay y en Factus v2.
+
 ## Cómo correrlo
 
 ```bash
 npm install
-npm run dev
+VITE_FUENTE=memoria npm run dev
 ```
 
-Abre la dirección que muestra Vite. Para usar las APIs reales, copia `.env.example` a `.env` y pon las credenciales del sandbox.
+Abre la dirección que muestra Vite. Esta versión usa datos en memoria y un simulador, sin llamar a ninguna API.
 
-- [AGENTS.md](AGENTS.md): reglas de trabajo y datos de las APIs.
-- [contratos/README.md](contratos/README.md): cómo se comunican las piezas y las reglas de negocio.
+Para el backend real, copia `.env.example` a `.env`, pon las credenciales del sandbox y usa `npm run emuladores`. Las pruebas corren con `npm run verificar`, `npm run test:reglas` y `npm run test:flujo`. Las credenciales nunca van en el repositorio: en producción están en Secret Manager.
+
+## Documentación
+
+- [Explicación de la integración](docs/explicacion-integracion.md)
+- [Contratos y reglas de negocio](contratos/README.md)
+- [Casos de prueba](docs/casos-de-prueba.md)
+- [Reglas de trabajo y datos de las APIs](AGENTS.md)
+- [Créditos de las fotos](https://ribu-co.web.app/creditos)

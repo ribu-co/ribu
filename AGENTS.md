@@ -19,7 +19,8 @@ La nota pesa así: creatividad 20 %, solución del problema 20 %, pitch 15 %, AP
 
 TypeScript en todo. Firebase para Hosting, Authentication, Firestore y Cloud Functions. Web con React y Vite, pruebas con Vitest.
 
-- `npm run dev`: la web con Vite.
+- `npm run dev`: la web con Vite. Usa `VITE_FUENTE=memoria` para trabajar sin backend.
+- Producción: https://ribu-co.web.app, proyecto de Firebase `ribu-co`.
 - `npm run verificar`: tipos, pruebas y build. Es lo mismo que corre CI.
 
 ## Carpetas
