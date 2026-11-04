@@ -1,59 +1,116 @@
-# Guion del pitch
+# Guion del pitch · presentación del equipo Ribu
 
-Máximo 5 minutos. La pauta reserva 4:30; falta cronometrarla con Eddy. Lo que va en cita, y la columna "Qué se dice" de la demo, es lo que se dice en voz alta. Las preguntas del jurado y las notas de preparación quedan fuera de esos 4:30. Los datos de la demo salen de `docs/datos-demo.md`.
+**Estructura acordada: introducción del problema → video funcionando → cada integrante explica su módulo → cierre breve.** El límite de **5 minutos incluye todo**: reproducción, voz, pausas y cambios de expositor.
 
-**Idea central: la mesa cobra y factura sola.**
+La pauta termina en **4:45 y reserva 15 segundos**. El video debe durar **2:00**, dentro del rango de 2 a 3 minutos del entregable. Conservar la versión anterior de 2:35 llevaría esta misma pauta a 5:20.
 
-**Estado:** se escribió antes de que la app funcione. Cada frase de la demo se ensaya contra la app desplegada. Si algo no funciona ese día, se quita del guion: no se promete lo que la demo no muestre.
+**Mensaje que el jurado debe recordar: dos APIs, una referencia. Ribu: la mesa cobra y factura sola.** La explicación prioriza cómo usamos Factus Pay y Factus v2 y cómo asociamos el dinero con la factura.
 
-## 1. Problema (0:00–0:35)
+Estado: guion listo para revisión y ensayo. El video sigue pendiente de grabación. Las frases de funcionamiento se presentan como hechos solo después de comprobar el flujo real en la app desplegada con ambas APIs sandbox. Los módulos se describen en pasado únicamente si cada integrante puede mostrar y defender su implementación. Nunca se completa un pago con dinero real.
 
-> Piensen en la última vez que dividieron una cuenta en un restaurante. Alguien pide la cuenta, esperan, cada quien paga distinto y alguien tiene que sacar varias facturas.
+## Reparto de los cinco minutos
+
+| Reloj total | Responsable | Bloque | Duración |
+|---|---|---|---:|
+| 0:00–0:25 | Eddy | Introducción del problema | 25 s |
+| 0:25–2:25 | Video | Demostración funcionando | 120 s |
+| 2:25–2:50 | Andrés | Interfaz | 25 s |
+| 2:50–3:20 | Néstor | Cobros · Factus Pay | 30 s |
+| 3:20–3:50 | Elias | Facturación · Factus v2 | 30 s |
+| 3:50–4:20 | Juan Diego | Integración | 30 s |
+| 4:20–4:35 | Eddy | Producto y pitch | 15 s |
+| 4:35–4:45 | Eddy | Cierre e invitación | 10 s |
+| 4:45–5:00 | Equipo | Margen para un retraso breve | 15 s |
+
+Las cinco intervenciones de módulo suman 2:10. Se hacen después del video, en el orden Interfaz → Cobros → Facturación → Integración → Producto. Eddy introduce el problema y retoma el cierre. Los turnos ya incluyen el relevo entre personas: todos deben estar preparados.
+
+## Texto para decir y evidencia que acompañarlo
+
+Solo se pronuncia lo que está en cita. Los nombres de endpoints y campos quedan visibles como apoyo; cada responsable explica su propósito sin leer todas las rutas. El video tiene su propio audio y el equipo continúa al terminar, sin volver a narrar todo el recorrido.
+
+### 1. Eddy · Introducción del problema (0:00–0:25)
+
+> «¿Nos trae la cuenta, por favor?»
 >
-> Nuestra hipótesis es que, cuando pedido, cobro y factura están separados, el dueño termina cruzando qué plata corresponde a qué factura. Todavía debemos validarla con restaurantes.
+> Resolver el consumo, el pago y la factura por separado puede repetir trabajo. Ribu busca darle claridad al cliente y control al restaurante conectando dos APIs con una referencia. Veamos el flujo en sandbox.
 
-Si `docs/validacion.md` tiene una frase real con permiso, va aquí, con el tipo de negocio. Si no hay, no se dice nada: **no se inventan testimonios**.
+**En pantalla y entrega:** Nombre Ribu y tres conceptos: pedido, pago y factura. Pausa breve después del gancho. Preparar el video para comenzar con una sola acción.
 
-## 2. Solución (0:35–1:05)
+### 2. Video · Demostración funcionando (0:25–2:25)
 
-> Ribu es un sticker en cada mesa, con NFC y QR, que abre un mismo link. Desde ahí se pide, el mesero confirma, la cocina prepara y se paga con Factus Pay.
->
-> Y en cuanto entra el pago, se emite la factura electrónica con Factus, sin que nadie la digite. La mesa cobra y factura sola.
+Reproducir el video completo de 2:00. La pauta de capturas y narración está en `pitch/guion-video.md`.
 
-## 3. Demo en vivo (1:05–3:05)
+**En pantalla y entrega:** Reproducir la versión final de 2:00 descrita en pitch/guion-video.md. Conservar audio y rótulo de sandbox. El equipo deja que la evidencia se vea; las explicaciones de módulos empiezan al terminar.
 
-Se necesitan tres pantallas: el celular de la mesa, el mesero en el portátil y otro dispositivo con el simulador, que escanea el QR con la cámara.
+### 3. Andrés · Interfaz (2:25–2:50)
 
-| Paso | Qué se hace | Qué se dice |
+> En Interfaz trabajé las vistas de cliente, mesero y cocina. La web envía órdenes y escucha Firestore. El backend calcula importes y confirma pagos. Así mostramos el estado de la cuenta y la factura sin exponer las credenciales de las APIs.
+
+**En pantalla y entrega:** Una vista real del flujo mostrado en el video. Señalar la separación web/backend. No volver a reproducir el recorrido ni explicar botones uno por uno.
+
+### 4. Néstor · Cobros · Factus Pay (2:50–3:20)
+
+> En Cobros integré Factus Pay: creamos un recaudo con referencia, monto y vencimiento. La API devuelve QR y llave Bre-B. Antes de facturar consultamos ese recaudo y comprobamos monto y estado pagado. El webhook nos avisa; la consulta al proveedor confirma el pago.
+
+**En pantalla y entrega:** Mostrar POST /v1/collections y GET /v1/collections/{reference_code}; debajo, reference_code, amount, expiration y status: paid de la misma corrida. Son solicitudes/respuestas reales sanitizadas; nunca tokens ni la llave secreta del webhook.
+
+### 5. Elias · Facturación · Factus v2 (3:20–3:50)
+
+> En Facturación integré Factus v2. Tras el pago, enviamos comprador, productos, impuestos y medio de pago para validar la factura. Usamos como referencia el id del pago. Recibimos número, CUFE y enlaces, y descargamos el PDF. Las correcciones se gestionan con notas crédito y débito.
+
+**En pantalla y entrega:** Mostrar POST /v2/bills/validate con el mismo reference_code y la respuesta real con is_validated, number y cufe. Señalar el PDF descargado con GET /v2/bills/{number}/download-pdf. Explicar campos, sin leer URLs largas en voz alta.
+
+### 6. Juan Diego · Integración (3:50–4:20)
+
+> En Integración uní ambos servicios. El id del pago es el reference_code del recaudo y de la factura. Reservamos lo que cubre cada cobro para evitar pagos superpuestos. Confirmamos el dinero antes de emitir y conservamos la referencia al reintentar. Esa relación hace trazable el cierre de la mesa.
+
+**En pantalla y entrega:** Dejar juntas las tres referencias iguales: Pago.id de Ribu, reference_code de Factus Pay y reference_code de Factus. Comentar el control de estados como arquitectura; los escenarios de concurrencia y reintento solo se presentan como probados si tienen evidencia.
+
+### 7. Eddy · Producto y pitch (4:20–4:35)
+
+> En Producto definí el escenario del restaurante, los datos de la demo y los recorridos de prueba. Mi responsabilidad es que cada beneficio tenga una demostración verificable.
+
+**En pantalla y entrega:** Mantener visible el caso de la mesa 3 y su factura. No afirmar entrevistas, ahorro medido, pruebas físicas o grabaciones que no se hayan realizado.
+
+### 8. Eddy · Cierre e invitación (4:35–4:45)
+
+> Los invito a comprobar la misma referencia en ambas APIs. Ribu: la mesa cobra y factura sola.
+
+**En pantalla y entrega:** Mirar al jurado y señalar la referencia compartida. Terminar en esa frase. Los 15 segundos siguientes son margen, no otro bloque de contenido.
+
+## Qué demuestra el uso de las APIs
+
+| Responsable | Operación que explica | Evidencia del mismo caso |
 |---|---|---|
-| 1 | Abre el enlace de la mesa 3; usa el sticker solo si ya pasó la prueba física | Abro el enlace y ya estoy en la mesa 3. Sin instalar nada y sin registrarme. |
-| 2 | Pide 2 mojarras, 2 jugos y 1 patacón | Pido. Esto todavía no va a cocina. |
-| 3 | El mesero confirma | El mesero confirma, y solo lo confirmado se puede pagar. Quedaban dos mojarras, así que la mojarra aparece agotada. |
-| 4 | Avanza el pedido en cocina | La cocina lo ve y lo va marcando. Toda la mesa ve el avance. |
-| 5 | Elige toda la cuenta, 10 % de propina y consumidor final | Elijo la propina antes de pagar, porque el cobro es por el monto exacto: 100.300 pesos. |
-| 6 | Muestra el QR y la llave Bre-B | Factus Pay crea el recaudo. Este es el sandbox: no se mueve dinero real. |
-| 7 | Escanea con el simulador y paga | Confirmo el pago en el simulador de Factus Pay. |
-| 8 | Aparece la factura | Sin tocar nada más: número, CUFE, QR de la DIAN y PDF. Esta es la factura de ese pago. |
+| Néstor | `POST /v1/collections` con referencia, monto y vencimiento | Recaudo, QR y llave Bre-B de Factus Pay |
+| Néstor y Juan Diego | `GET /v1/collections/{reference_code}` antes de facturar | Referencia existente, monto esperado y estado `paid` |
+| Elias | `POST /v2/bills/validate` con comprador, líneas, impuestos y pago | Factura validada: `is_validated: true`, número y CUFE |
+| Elias | `GET /v2/bills/{number}/download-pdf` | PDF abierto de esa factura |
+| Juan Diego | `Pago.id = reference_code` en las dos APIs | La misma referencia en Ribu, Factus Pay y Factus |
 
-**Si queda tiempo:** mostrar el mismo id del pago en el panel de Factus Pay y en la factura.
+El webhook avisa, y el backend confirma con consulta al proveedor. La web no decide que entró dinero. La autenticación, los tokens y la llave del webhook permanecen fuera de la presentación. Explicar un endpoint con una tarjeta de texto no acredita que se llamó: la evidencia debe venir del video o de una captura real sanitizada de esa corrida.
 
-## 4. Arquitectura (3:05–3:45)
+## Ensayo y control del tiempo
 
-> Todo depende de una decisión: el id del pago en Ribu es el `reference_code` en Factus Pay y también en Factus. Así el dinero y la factura quedan asociados desde el principio, no se cruzan después.
->
-> El webhook avisa, pero no le creemos sin confirmar: consultamos el estado antes de facturar. Si la DIAN demora, reintentamos con la misma referencia, y no se duplica.
->
-> La web nunca envía precios ni estados. Las llaves de las APIs no llegan al navegador: las maneja solo el backend, en Firebase.
+El texto hablado en vivo tiene **262 palabras**; el video tiene **126 palabras de narración**. Son recuentos del guion, no una duración medida. El presupuesto de 4:45 incluye el video de dos minutos y todos los relevos. A un ritmo supuesto de 120 palabras por minuto, la voz en vivo ocuparía unos 131.0 segundos dentro de sus 165 segundos asignados. La holgura permite pausas, señalar evidencia y cambiar de expositor.
 
-## 5. Valor para el dueño (3:45–4:20)
+- Iniciar el reloj antes del gancho. El video empieza a 0:25, Andrés entra a 2:25 y el cierre comienza a 4:35.
+- Probar el archivo de video final en el reproductor que se usará. Confirmar audio, legibilidad de importes, referencias y resultado de ambas APIs.
+- Ensayar con las cinco personas. Registrar duración de cada turno y duración total en el mismo ensayo; la lectura individual no valida los relevos.
+- Objetivo: terminar dentro de 4:45. Si se excede, recortar frases repetidas entre módulos y mantener la comprobación de recaudo, factura y referencia compartida.
+- Las preguntas preparadas de abajo se atienden después solo si el formato del evento lo permite. No se agrega una ronda de respuestas dentro del presupuesto de cinco minutos.
+- Si el video no reproduce o un paso obligatorio está incompleto, comunicar el estado real y terminar dentro del límite. No sustituirlo por mocks ni por documentos de otro pago. Corregir y volver a grabar antes de la entrega.
 
-> ¿Qué gana el dueño? Primero, cada pago queda atado a su factura, sin cruzar extractos. Segundo, dividir la cuenta deja de ser un problema: cada persona paga lo suyo y recibe su factura.
->
-> Cada recaudo cuesta 952 pesos, más 952 por dispersión. El ahorro depende del importe y de cuántos recaudos se agrupen. Aún falta medir el ahorro de tiempo y fijar el precio de Ribu.
+## Antes de dar el pitch por listo
 
-## 6. Cierre (4:20–4:30)
+- [ ] Video real de 2:00, dentro de la duración exigida de 2 a 3 minutos, reproducido de principio a fin.
+- [ ] Se ve el recaudo de Factus Pay confirmado y la factura de Factus v2 del mismo pago.
+- [ ] Coinciden las tres referencias, se lee el monto y se abre el PDF.
+- [ ] Cada integrante revisó su intervención y explica qué envía, qué recibe y cómo maneja un fallo en su parte.
+- [ ] Eddy distingue problema hipotético, datos ficticios y resultados probados por el equipo.
+- [ ] Ensayo completo con cinco integrantes dentro de 4:45; quedan 15 segundos de margen.
 
-> Pedido, cobro y factura, en un solo flujo. Eso es Ribu: la mesa cobra y factura sola. Gracias.
+La guía de introducción, desarrollo y cierre está en `docs/guia-speech.md`. Las fuentes de hechos y cifras siguen siendo `docs/datos-demo.md`, `docs/explicacion-integracion.md`, `contratos/README.md` y las fuentes citadas en las respuestas del jurado. Las entrevistas, el ensayo y las pruebas físicas pendientes no se dan por hechos.
 
 ## Preguntas del jurado
 
