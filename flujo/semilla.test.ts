@@ -37,6 +37,12 @@ describe('sembrar', () => {
       impuesto: { tipo: 'INC', porcentaje: 8 },
       propinasSugeridas: [0, 5, 8, 10],
       activo: true,
+      vitrina: {
+        fotoUrl: '/restaurantes/fogon-del-manglar.jpg',
+        ubicacion: 'Montería',
+        mapaUrl: 'https://www.google.com/maps/search/?api=1&query=Monter%C3%ADa%2C%20C%C3%B3rdoba',
+        instagramUrl: 'https://instagram.com/fogondelmanglar',
+      },
     })
     expect(resultado.mesas.map((m) => m.numero)).toEqual([1, 2, 3, 4, 5])
     for (const { token, link } of resultado.mesas) {
@@ -55,6 +61,27 @@ describe('sembrar', () => {
       if (rol === 'plataforma') expect(personal).toBeNull()
       else expect(personal).toMatchObject({ uid, rol, activo: true, correo: `${rol}@ribu.test` })
     }
+  })
+
+  test('le agrega la vitrina al restaurante que ya existía sin ella, sin tocar lo demás', async () => {
+    const e = crearEscenario()
+    await sembrar(e.ctx, solicitud(), ORIGEN)
+    const ruta = `restaurantes/${RESTAURANTE_DEMO}`
+    const { vitrina, ...sinVitrina } = (await e.db.leer<Restaurante>(ruta)) as Restaurante
+    await e.db.transaccion(async (tx) => tx.guardar(ruta, { ...sinVitrina, nombre: 'Otro nombre' }))
+
+    await sembrar(e.ctx, solicitud(), ORIGEN)
+    expect(await e.db.leer<Restaurante>(ruta)).toEqual({ ...sinVitrina, nombre: 'Otro nombre', vitrina })
+  })
+
+  test('no pisa la vitrina que el restaurante ya tiene', async () => {
+    const e = crearEscenario()
+    await sembrar(e.ctx, solicitud(), ORIGEN)
+    const ruta = `restaurantes/${RESTAURANTE_DEMO}`
+    await e.db.transaccion(async (tx) => tx.actualizar(ruta, { vitrina: null }))
+
+    await sembrar(e.ctx, solicitud(), ORIGEN)
+    expect((await e.db.leer<Restaurante>(ruta))?.vitrina).toBeNull()
   })
 
   test('la carta es la de docs/datos-demo.md, con sus 12 productos', async () => {

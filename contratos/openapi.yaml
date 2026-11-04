@@ -591,6 +591,18 @@ components:
           type: array
           items: { type: number }
         activo: { type: boolean }
+        vitrina:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Vitrina'
+    Vitrina:
+      type: object
+      required: [fotoUrl, ubicacion, mapaUrl, instagramUrl]
+      properties:
+        fotoUrl: { type: string, nullable: true }
+        ubicacion: { type: string, nullable: true }
+        mapaUrl: { type: string, nullable: true }
+        instagramUrl: { type: string, nullable: true }
     NuevoRestaurante:
       type: object
       required: [nombre, impuesto, propinasSugeridas, mesas]
