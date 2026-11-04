@@ -93,12 +93,12 @@ export function crearCobrosMock(opciones: OpcionesCobrosMock = {}): CobrosMock {
 
     const anterior = recaudos.get(referencia)
     if (anterior) {
-      // Factus Pay responde 200 con el recaudo que ya existía.
-      if (anterior.monto !== monto) {
-        throw invalido(`El recaudo ${referencia} ya existe por ${anterior.monto} pesos`)
-      }
-      if (anterior.estado === 'paid') return anterior
-      // Renovar el QR es volver a pedirlo con la misma referencia y el mismo monto.
+      // Probado en el sandbox: otro monto con la misma referencia responde 422.
+      if (anterior.monto !== monto) throw invalido('La referencia ya existe con un monto diferente.')
+      // Con el QR vigente, o ya pagado, devuelve el mismo recaudo. Solo se regenera si ya venció,
+      // y conserva la llave Bre-B. El estado sigue en `ready`: el vencimiento está en `qrExpiraEn`.
+      const vencido = anterior.qrExpiraEn !== null && Date.parse(anterior.qrExpiraEn) <= ahora().getTime()
+      if (anterior.estado === 'paid' || !vencido) return anterior
       return guardar({ ...anterior, qrExpiraEn: vence(expiraEnSegundos) })
     }
 

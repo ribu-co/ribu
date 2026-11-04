@@ -86,20 +86,40 @@ test('marcarEstado sirve para los caminos de error', async () => {
   expect((await cobros.consultarCobro('pago-1')).recaudadoEn).toBeNull()
 })
 
-test('vencerQr deja la expiración en el pasado', async () => {
+test('vencerQr solo cambia la fecha: un QR vencido sigue en ready', async () => {
   const cobros = nuevo()
-  await cobros.crearCobro(solicitud)
+  const antes = await cobros.crearCobro(solicitud)
   const vencido = cobros.vencerQr('pago-1')
   expect(Date.parse(vencido.qrExpiraEn!)).toBeLessThan(RELOJ.getTime())
+  expect(vencido).toEqual({ ...antes, qrExpiraEn: vencido.qrExpiraEn })
+  // Probado en el sandbox: el vencimiento se mira con qrExpiraEn, no con el estado.
+  expect((await cobros.consultarCobro('pago-1')).estado).toBe('ready')
 })
 
-test('repetir la referencia con el mismo monto renueva el QR', async () => {
+test('repetir la referencia y el monto con el QR vigente devuelve el mismo recaudo', async () => {
   const cobros = nuevo()
-  await cobros.crearCobro(solicitud)
+  const primero = await cobros.crearCobro(solicitud)
+  // Aunque pidan otra expiración: Factus Pay responde "Recaudo ya existente" y no toca el QR.
+  expect(await cobros.crearCobro({ ...solicitud, expiraEnSegundos: 3600 })).toEqual(primero)
+})
+
+test('repetir la referencia y el monto con el QR vencido lo renueva y conserva la llave', async () => {
+  const cobros = nuevo()
+  const primero = await cobros.crearCobro(solicitud)
   cobros.vencerQr('pago-1')
   const renovado = await cobros.crearCobro({ ...solicitud, expiraEnSegundos: 300 })
   expect(renovado.qrExpiraEn).toBe('2026-11-04T15:05:00.000Z')
-  expect(renovado.llaveBreB).toBe('@RIBUMOCK0001')
+  expect(renovado.llaveBreB).toBe(primero.llaveBreB)
+  expect(renovado.estado).toBe('ready')
+})
+
+test('un QR que vence justo ahora ya se renueva', async () => {
+  let ahora = new Date(RELOJ)
+  const cobros = crearCobrosMock({ ahora: () => ahora })
+  await cobros.crearCobro(solicitud)
+  ahora = new Date(RELOJ.getTime() + 600 * 1000)
+  const renovado = await cobros.crearCobro({ ...solicitud, expiraEnSegundos: 600 })
+  expect(renovado.qrExpiraEn).toBe('2026-11-04T15:20:00.000Z')
 })
 
 test('un recaudo pagado no se renueva', async () => {
@@ -109,10 +129,19 @@ test('un recaudo pagado no se renueva', async () => {
   expect(await cobros.crearCobro(solicitud)).toMatchObject({ estado: 'paid' })
 })
 
-test('repetir la referencia con otro monto falla: el QR solo acepta el monto exacto', async () => {
+test('repetir la referencia con otro monto responde 422, como el sandbox', async () => {
   const cobros = nuevo()
   await cobros.crearCobro(solicitud)
-  await expect(cobros.crearCobro({ ...solicitud, monto: 30_000 })).rejects.toBeInstanceOf(ErrorIntegracion)
+  await expect(cobros.crearCobro({ ...solicitud, monto: 30_000 })).rejects.toMatchObject({
+    name: 'ErrorIntegracion',
+    tipo: 'validacion',
+    status: 422,
+    message: 'La referencia ya existe con un monto diferente.',
+  })
+})
+
+test('el rango de montos es el que se probó en el sandbox: 10.000 a 12.000.000', () => {
+  expect([MONTO_MINIMO_COBRO, MONTO_MAXIMO_COBRO]).toEqual([10_000, 12_000_000])
 })
 
 test.each([
