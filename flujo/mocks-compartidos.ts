@@ -58,6 +58,9 @@ export interface CobrosCompartidos extends ServicioCobros {
 
 export const LLAVE_WEBHOOK_MOCK = 'llave-de-ejemplo-del-webhook-de-ribu'
 
+/** Solo vale dentro del emulador, donde no hay secretos. Las pruebas de `test:flujo` la usan. */
+export const CLAVE_SEMILLA_EMULADOR = 'clave-del-emulador'
+
 export function crearCobrosCompartidos(db: BaseDatos, ahora: () => Date = () => new Date()): CobrosCompartidos {
   const mock = crearCobrosMock({ ahora })
   const ruta = (referencia: string) => `${COBROS}/${referencia}`

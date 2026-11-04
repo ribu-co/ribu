@@ -14,7 +14,7 @@ import { crearApi } from './api'
 import { crearAuthFirebase } from './auth'
 import { crearBaseFirestore } from './base-firestore'
 import { debeEmitir, procesarDocumento } from './documentos'
-import { crearCobrosCompartidos, crearFacturacionCompartida, LLAVE_WEBHOOK_MOCK } from './mocks-compartidos'
+import { CLAVE_SEMILLA_EMULADOR, crearCobrosCompartidos, crearFacturacionCompartida, LLAVE_WEBHOOK_MOCK } from './mocks-compartidos'
 import type { Contexto } from './modelo'
 import { barrer } from './programado'
 import { aPeticionWeb, enviarRespuesta } from './puente'
@@ -86,7 +86,7 @@ let apiCreada: ReturnType<typeof crearApi> | undefined
 
 function aplicacion() {
   apiCreada ??= crearApi(contexto(), {
-    claveSemilla: () => SEMILLA_CLAVE.value(),
+    claveSemilla: () => (process.env.FUNCTIONS_EMULATOR === 'true' ? CLAVE_SEMILLA_EMULADOR : SEMILLA_CLAVE.value()),
     origenWeb: () => process.env.RIBU_URL_WEB ?? `https://${process.env.GCLOUD_PROJECT}.web.app`,
     ...(usarMocks()
       ? {
