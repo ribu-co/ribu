@@ -64,7 +64,8 @@ sequenceDiagram
 
     R->>P: GET /v1/collections/{reference_code}
     P-->>R: status paid
-    R->>R: Marca el pago como pagado
+    R->>R: Comprueba referencia, monto exacto y estado paid
+    R->>R: Marca el pago como pagado una sola vez
 
     R->>F: POST /v2/bills/validate (reference_code = id del pago)
     alt Validada por la DIAN
@@ -117,7 +118,9 @@ Entorno: `https://pay-api-sandbox.factus.com.co`. Lo implementa `ServicioCobros`
 | Webhook | Avisa los recaudos `paid`. Es solo un aviso: nunca se factura sin confirmar con `GET` |
 | Simulador | Confirma el pago en la demo, porque el reto solo permite el sandbox |
 
-**Webhook:** la URL se registra en el panel. Factus Pay envía la llave en `?key=` y el recaudo en `data`. Ribu compara la llave en tiempo constante y responde 2xx en menos de 10 segundos. Si no recibe 2xx, Factus Pay hace hasta 6 intentos en total.
+**Autorización:** usar el token sandbox que Integración comparte por privado, en `Authorization: Bearer`. No llamar a `POST /auth`: según `AGENTS.md`, revoca el token del equipo.
+
+**Webhook:** la URL se registra en el panel. Factus Pay envía la llave en `?key=` y el recaudo en `data`. El diseño exige comparar la llave en tiempo constante, guardar el aviso de forma durable y responder 2xx en menos de 10 segundos; la emisión se procesa después. No confirmar recepción si no se guardó. Antes de facturar, consultar y comprobar la referencia existente, el monto exacto y `paid`; recibir un webhook no basta. Los avisos repetidos deben procesarse una sola vez. Si no recibe 2xx, Factus Pay hace hasta 6 intentos en total. Estos controles siguen pendientes de comprobar en el backend desplegado.
 
 **QR vencido:** se renueva con la misma referencia, el mismo monto y otro `expiration`.
 
