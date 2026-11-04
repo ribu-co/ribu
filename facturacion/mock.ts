@@ -11,9 +11,9 @@ import type {
   ServicioFacturacion,
   SolicitudFactura,
   SolicitudNota,
-  TipoNota,
 } from '../contratos/tipos'
 import { validarSolicitud } from './calculo'
+import type { Rango } from './conexion'
 
 export type EscenarioEmision = 'emitida' | 'en_validacion' | 'rechazada'
 
@@ -24,8 +24,6 @@ export interface OpcionesFacturacionMock {
   /** Por defecto, `emitida`. */
   escenario?: EscenarioEmision | DecidirEscenario
 }
-
-export type Rango = 'factura' | TipoNota
 
 export interface CorreoMock {
   rango: Rango
