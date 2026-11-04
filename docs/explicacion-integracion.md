@@ -53,7 +53,7 @@ sequenceDiagram
     C->>R: Elige qué paga, propina y comprador
     R->>R: Crea el pago con su id y congela lo que cubre
     R->>P: POST /v1/collections (reference_code = id del pago)
-    P-->>R: 200 con expiration; 201 sin expiration, con data del recaudo
+    P-->>R: 200 o 201, con el recaudo en data
     R-->>C: Muestra la llave Bre-B, el QR y el monto exacto
     C->>P: Paga con su banco (en la demo, con el simulador)
 
