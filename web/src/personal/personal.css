@@ -1,0 +1,275 @@
+/*
+ * Pantallas del personal: mismas piezas de estilos.css, con más ancho para la tableta.
+ * Blanco y negro: los estados se marcan con texto, icono, peso o relleno, nunca con un color propio.
+ */
+
+.pagina--personal {
+  max-width: 1120px;
+}
+
+.cabecera-personal__acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cabecera-personal__quien {
+  max-width: 34vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entrada-personal {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.entrada-personal__demo .seccion-titulo {
+  font-size: 1.05rem;
+  margin: 22px 2px 10px;
+}
+
+/* Botones de acción de una línea: siguen siendo fáciles de tocar, pero no ocupan toda la tarjeta. */
+
+.acciones-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.acciones-linea .boton {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.95rem;
+}
+
+/* El tablero de mesas */
+
+.tablero__titulo {
+  margin-top: 8px;
+}
+
+.tablero {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mesa-tablero {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  height: 100%;
+  min-height: 124px;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 160ms ease-out, outline-color 200ms ease-out;
+}
+
+.mesa-tablero:active {
+  transform: scale(0.97);
+}
+
+.mesa-tablero__cabeza {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mesa-tablero__etiqueta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+}
+
+.mesa-tablero__numero {
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: var(--tinta);
+}
+
+.mesa-tablero__cabeza[data-libre='true'] .mesa-tablero__numero {
+  color: var(--tinta-3);
+}
+
+/* Lo que espera al mesero se ve desde lejos: el número va en negro sólido y la tarjeta lleva borde. */
+.mesa-tablero__cabeza[data-atencion='true'] .mesa-tablero__numero {
+  padding: 2px 10px;
+  border-radius: var(--radio-s);
+  background: var(--tinta);
+  color: var(--superficie);
+}
+
+.mesa-tablero:has([data-atencion='true']) {
+  outline: 2px solid var(--tinta);
+  outline-offset: -2px;
+}
+
+.mesa-tablero__estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* El detalle de una mesa */
+
+.mesa-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.mesa-cabeza__titulo {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.mesa-cabeza__estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mesa-cabeza__pedir {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.95rem;
+}
+
+.mesa-detalle,
+.mesa-detalle__cuenta,
+.cobro-mesa,
+.liberar-mesa,
+.detalle-pago {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.ronda__cabeza h2 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.linea__meta {
+  color: var(--tinta-2);
+  font-size: 0.8rem;
+}
+
+.linea .acciones-linea {
+  margin-top: 4px;
+}
+
+.detalle-pago__estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pago-fila__texto span + span {
+  display: block;
+}
+
+/* La cocina */
+
+.cocina__resumen {
+  margin: 0 2px 14px;
+}
+
+.cocina {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+/* Movimiento: corto y solo para confirmar que algo cambió. */
+
+@keyframes personal-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.tablero > li,
+.cocina__mesa,
+.mesa-detalle .ronda,
+.mesa-detalle__cuenta > * {
+  animation: personal-entra 220ms ease-out backwards;
+}
+
+.linea {
+  transition: opacity 200ms ease-out;
+}
+
+.linea[data-estado='rechazada'],
+.linea[data-estado='anulada'],
+.linea[data-estado='entregada'] {
+  opacity: 0.6;
+}
+
+.acciones-linea .boton {
+  transition: transform 160ms ease-out, opacity 200ms ease-out;
+}
+
+.acciones-linea .boton:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tablero > li,
+  .cocina__mesa,
+  .mesa-detalle .ronda,
+  .mesa-detalle__cuenta > * {
+    animation: none;
+  }
+
+  .mesa-tablero,
+  .linea,
+  .acciones-linea .boton {
+    transition: none;
+  }
+
+  .mesa-tablero:active,
+  .acciones-linea .boton:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (min-width: 820px) {
+  .mesa-detalle {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+
+  .cocina {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tablero {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .cocina {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
