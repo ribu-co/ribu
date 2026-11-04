@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Cuenta, Mesa, Producto, Restaurante } from '../../../contratos/tipos'
 import { usarFuente, usarLectura, usarSesionDeMesa } from '../datos/contexto'
 import type { Sesion } from '../datos/fuente'
@@ -11,6 +11,11 @@ import { Icono } from '../ui/Icono'
 import { resumenLineas } from '../ui/lineas'
 import { agregar, aSolicitud, cambiarCantidad, quitarNoDisponibles, totalEstimado, unidades, unidadesDe } from './borrador'
 import { Carta } from './Carta'
+import { Cuenta as VistaCuenta } from './Cuenta'
+import { miCobroActivo } from './cuenta'
+import { HojaPagar } from './HojaPagar'
+import { SeguimientoPago } from './SeguimientoPago'
+import { usarPagoAbierto } from './usarPagoAbierto'
 import { HojaBorrador } from './HojaBorrador'
 import { HojaProducto } from './HojaProducto'
 import { Pedido } from './Pedido'
@@ -83,7 +88,7 @@ function Marco({ children }: { children: ReactNode }) {
   return <main className="pagina pagina--mesa">{children}</main>
 }
 
-export type PestanaMesa = 'carta' | 'pedido'
+export type PestanaMesa = 'carta' | 'pedido' | 'cuenta'
 
 export function VistaMesa({
   mesa,
@@ -91,7 +96,7 @@ export function VistaMesa({
   productos,
   cuenta,
   sesion,
-  pestanaInicial = 'carta',
+  pestanaInicial,
 }: {
   mesa: Mesa
   restaurante: Restaurante
@@ -102,7 +107,18 @@ export function VistaMesa({
 }) {
   const fuente = usarFuente()
   const avisos = usarAvisos()
-  const [pestana, setPestana] = useState<PestanaMesa>(pestanaInicial)
+  const [pagoAbierto, setPagoAbierto] = usarPagoAbierto(mesa.token)
+  const miCobro = cuenta ? miCobroActivo(cuenta, sesion.uid) : null
+  const [pestana, setPestana] = useState<PestanaMesa>(pestanaInicial ?? (pagoAbierto || miCobro ? 'cuenta' : 'carta'))
+  const [pagando, setPagando] = useState(false)
+
+  // Al volver del banco, aunque el navegador haya recargado, la página retoma el cobro activo.
+  useEffect(() => {
+    if (miCobro && !pagoAbierto) {
+      setPagoAbierto(miCobro.id)
+      setPestana('cuenta')
+    }
+  }, [miCobro?.id])
   const [borrador, cambiarBorrador] = usarBorrador(mesa.token, mesa.cuentaId)
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [verBorrador, setVerBorrador] = useState(false)
@@ -176,6 +192,7 @@ export function VistaMesa({
           opciones={[
             { valor: 'carta', texto: 'Carta' },
             { valor: 'pedido', texto: 'Pedido', insignia: lineasActivas.length },
+            { valor: 'cuenta', texto: 'Cuenta' },
           ]}
         />
       </div>
@@ -185,9 +202,33 @@ export function VistaMesa({
           <Carta productos={productos} enBorrador={(id) => unidadesDe(borrador, id)} alElegir={setElegido} />
         )}
         {pestana === 'pedido' && <Pedido cuenta={cuenta} alVerCarta={() => setPestana('carta')} />}
+        {pestana === 'cuenta' &&
+          (pagoAbierto ? (
+            <SeguimientoPago
+              key={pagoAbierto}
+              token={mesa.token}
+              pagoId={pagoAbierto}
+              restauranteId={mesa.restauranteId}
+              sesion={sesion}
+              alVolver={() => setPagoAbierto(null)}
+              alReintentar={() => {
+                setPagoAbierto(null)
+                setPagando(true)
+              }}
+            />
+          ) : (
+            <VistaCuenta
+              cuenta={cuenta}
+              sesion={sesion}
+              alPagar={() => setPagando(true)}
+              alVerMiCobro={setPagoAbierto}
+              alVerPago={setPagoAbierto}
+              alVerCarta={() => setPestana('carta')}
+            />
+          ))}
       </div>
 
-      <div className="barra-flotante" data-visible={cuantos > 0} inert={cuantos === 0}>
+      <div className="barra-flotante" data-visible={cuantos > 0 && pestana !== 'cuenta'} inert={cuantos === 0 || pestana === 'cuenta'}>
         <Boton ancho className="boton--barra" onClick={() => setVerBorrador(true)}>
           <span className="burbuja">{cuantos}</span>
           <span>Ver {plural(cuantos, 'producto')}</span>
@@ -203,6 +244,21 @@ export function VistaMesa({
           setElegido(null)
         }}
       />
+      {cuenta && (
+        <HojaPagar
+          abierta={pagando}
+          alCerrar={() => setPagando(false)}
+          titulo="Pagar la cuenta"
+          subtotal={cuenta.porPagar}
+          destino={{ tipo: 'saldo' }}
+          restaurante={restaurante}
+          token={mesa.token}
+          alCrear={(pago) => {
+            setPagando(false)
+            setPagoAbierto(pago.id)
+          }}
+        />
+      )}
       <HojaBorrador
         abierta={verBorrador}
         alCerrar={() => {
