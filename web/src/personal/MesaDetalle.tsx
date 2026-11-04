@@ -2,18 +2,19 @@ import { useState } from 'react'
 import { puedeLiberarMesa, rutas } from '../../../contratos/reglas'
 import type { Cuenta, EstadoLinea, LineaPedido, Mesa, Pago, Restaurante } from '../../../contratos/tipos'
 import type { ObjetivoPago } from '../cliente/Dividir'
-import { etiquetaPago } from '../cliente/cuenta'
+import { Medidor } from '../cliente/Cuenta'
+import { etiquetaPago, todoPagado } from '../cliente/cuenta'
 import { usarFuente, usarLectura } from '../datos/contexto'
 import { navegar } from '../ruta'
 import { usarAvisos } from '../ui/Avisos'
-import { Boton, Chip } from '../ui/Controles'
+import { Boton, Chip, Pestanas } from '../ui/Controles'
 import { AvanceLinea } from '../ui/EstadoLinea'
 import { EsqueletoRonda } from '../ui/Esqueletos'
 import { ErrorVista, Vacio } from '../ui/Estados'
 import { hora, pesos, plural } from '../ui/formato'
 import { Hoja } from '../ui/Hoja'
 import { Icono } from '../ui/Icono'
-import { agruparPorRonda } from '../ui/lineas'
+import { agruparPorRonda, resumenLineas } from '../ui/lineas'
 import { CobroMesa } from './CobroMesa'
 import { HojaCobrar } from './HojaCobrar'
 import { HojaMotivo } from './HojaMotivo'
@@ -25,7 +26,6 @@ import {
   idsPorConfirmar,
   motivosParaNoLiberar,
   QUIEN_PIDIO,
-  resumirMesa,
   ROLES_MESERO,
   unidadesSinEntregar,
   type AccionLinea,
@@ -84,22 +84,37 @@ function CargandoMesa() {
   )
 }
 
+export type PestanaMesero = 'pedido' | 'cuenta'
+
+/** El título de arriba: lo primero que el mesero tiene que resolver en esta mesa. */
+function tituloDeMesa(cuenta: Cuenta | null, pendientes: number) {
+  if (!cuenta || cuenta.lineas.length === 0) return 'Mesa libre'
+  if (pendientes > 0) return `${plural(pendientes, 'línea')} por confirmar`
+  if (todoPagado(cuenta)) return 'Cuenta pagada'
+  if (cuenta.porPagar > 0) return `Saldo ${pesos(cuenta.porPagar)}`
+  if (cuenta.enCobro > 0) return `En cobro ${pesos(cuenta.enCobro)}`
+  return 'Sin saldo'
+}
+
 export function VistaMesaMesero({
   mesa,
   cuenta,
   restaurante,
   sesion,
+  pestanaInicial = 'pedido',
 }: {
   mesa: Mesa
   cuenta: Cuenta | null
   restaurante: Restaurante
   sesion: SesionPersonal
+  pestanaInicial?: PestanaMesero
 }) {
   const fuente = usarFuente()
   const { ocupado, ejecutar } = usarAccion()
   const token = mesa.token
   const pendientes = idsPorConfirmar(cuenta)
-  const { estados } = resumirMesa(mesa, cuenta ? [cuenta] : [])
+  const resumen = resumenLineas(cuenta?.lineas ?? [])
+  const [pestana, setPestana] = useState<PestanaMesero>(pestanaInicial)
 
   // Los objetivos siguen montados mientras la hoja se cierra, para que no se vacíe en la animación.
   const [motivo, setMotivo] = useState<{ accion: 'rechazar' | 'anular'; linea: LineaPedido } | null>(null)
@@ -127,71 +142,90 @@ export function VistaMesaMesero({
   }
 
   return (
-    <main className="pagina pagina--personal">
-      <CabeceraPersonal restaurante={restaurante.nombre} sesion={sesion} />
+    <main className="pagina pagina--mesa">
+      <CabeceraPersonal restaurante={restaurante.nombre} pastilla={`Mesa ${mesa.numero}`} volver="/mesero" />
 
-      <div className="mesa-cabeza">
-        <Enlace a="/mesero" className="icono-boton" etiqueta="Volver a las mesas">
-          <Icono nombre="izquierda" tamano={18} />
+      <section className="hero">
+        <p className="hero__etiqueta">Mesa {mesa.numero}</p>
+        <h1 className="hero__titulo">{tituloDeMesa(cuenta, pendientes.length)}</h1>
+        {cuenta && cuenta.lineas.length > 0 ? (
+          <p className="hero__texto">
+            {resumen.length > 0 && `${resumen.join(' · ')}. `}
+            Consumo {pesos(cuenta.consumo)} · Por pagar {pesos(cuenta.porPagar)}
+          </p>
+        ) : (
+          <p className="hero__texto">Lo que pidas desde el link de la mesa va directo a cocina.</p>
+        )}
+        <Enlace a={rutas.paginaMesa(token)} className="hero__resumen hero__resumen--enlace">
+          <span>Tomar pedido</span>
+          <span className="icono-circulo">
+            <Icono nombre="mas" tamano={16} />
+          </span>
         </Enlace>
-        <h1 className="mesa-cabeza__titulo">Mesa {mesa.numero}</h1>
-        <span className="mesa-cabeza__estados">
-          {estados.map((estado) => (
-            <Chip key={estado.texto} tono={estado.tono} rayado={estado.rayado}>
-              {estado.texto}
-            </Chip>
-          ))}
-        </span>
-        <Enlace a={rutas.paginaMesa(token)} className="boton boton--secundario mesa-cabeza__pedir">
-          <Icono nombre="mas" tamano={18} /> Tomar pedido
-        </Enlace>
-      </div>
+      </section>
 
-      {!cuenta || cuenta.lineas.length === 0 ? (
-        <Vacio icono="mesa" titulo="Esta mesa está libre" texto="Lo que pidas desde el link de la mesa va directo a cocina." />
-      ) : (
-        <div className="mesa-detalle">
-          <div className="rondas">
-            {agruparPorRonda(cuenta.lineas).map((ronda) => (
-              <section key={ronda.numero} className="tarjeta ronda">
-                <header className="ronda__cabeza">
-                  <h2>Ronda {ronda.numero}</h2>
-                  <span>{hora(ronda.creadaEn)}</span>
-                </header>
-                <ul className="lineas">
-                  {ronda.lineas.map((linea) => (
-                    <LineaMesero key={linea.id} linea={linea} ocupado={ocupado} alAccion={alAccion} />
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-
-          <div className="mesa-detalle__cuenta">
-            <section className="tarjeta" aria-label="Totales de la cuenta">
-              <div className="cifras">
-                <Cifra titulo="Consumo" valor={cuenta.consumo} />
-                <Cifra titulo="Pagado" valor={cuenta.pagado} />
-                <Cifra titulo="En cobro" valor={cuenta.enCobro} />
-                <Cifra titulo="Por pagar" valor={cuenta.porPagar} destacada />
-              </div>
-            </section>
-
-            <CobroMesa
-              cuenta={cuenta}
-              sesion={sesion}
-              token={token}
-              alCobrar={(nuevo) => {
-                setObjetivo(nuevo)
-                setCobrando(true)
-              }}
-              alVerPago={verPago}
+      {cuenta && cuenta.lineas.length > 0 && (
+        <>
+          <div className="barra-pestanas">
+            <Pestanas
+              etiqueta="Secciones de la mesa"
+              valor={pestana}
+              alCambiar={setPestana}
+              opciones={[
+                { valor: 'pedido', texto: 'Pedido', insignia: pendientes.length },
+                { valor: 'cuenta', texto: 'Cuenta' },
+              ]}
             />
-
-            <ListaPagos cuenta={cuenta} uid={sesion.uid} alVerPago={verPago} />
-            <LiberarMesa mesa={mesa} cuenta={cuenta} />
           </div>
-        </div>
+
+          <div className="contenido" key={pestana}>
+            {pestana === 'pedido' && (
+              <div className="rondas">
+                {agruparPorRonda(cuenta.lineas).map((ronda) => (
+                  <section key={ronda.numero} className="tarjeta ronda entra">
+                    <header className="ronda__cabeza">
+                      <h3>Ronda {ronda.numero}</h3>
+                      <span>{hora(ronda.creadaEn)}</span>
+                    </header>
+                    <ul className="lineas">
+                      {ronda.lineas.map((linea) => (
+                        <LineaMesero key={linea.id} linea={linea} ocupado={ocupado} alAccion={alAccion} />
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {pestana === 'cuenta' && (
+              <div className="mesa-detalle__cuenta">
+                <section className="tarjeta cuenta__resumen entra" aria-label="Totales de la cuenta">
+                  <Medidor consumo={cuenta.consumo} pagado={cuenta.pagado} enCobro={cuenta.enCobro} />
+                  <div className="cifras">
+                    <Cifra titulo="Consumo" valor={cuenta.consumo} />
+                    <Cifra titulo="Pagado" valor={cuenta.pagado} />
+                    <Cifra titulo="En cobro" valor={cuenta.enCobro} />
+                    <Cifra titulo="Por pagar" valor={cuenta.porPagar} destacada />
+                  </div>
+                </section>
+
+                <CobroMesa
+                  cuenta={cuenta}
+                  sesion={sesion}
+                  token={token}
+                  alCobrar={(nuevo) => {
+                    setObjetivo(nuevo)
+                    setCobrando(true)
+                  }}
+                  alVerPago={verPago}
+                />
+
+                <ListaPagos cuenta={cuenta} uid={sesion.uid} alVerPago={verPago} />
+                <LiberarMesa mesa={mesa} cuenta={cuenta} />
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <div className="barra-flotante" data-visible={pendientes.length > 0} inert={pendientes.length === 0}>

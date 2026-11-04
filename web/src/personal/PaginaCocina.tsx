@@ -3,7 +3,7 @@ import { usarFuente, usarLectura } from '../datos/contexto'
 import { Boton, Chip } from '../ui/Controles'
 import { ErrorVista, Vacio } from '../ui/Estados'
 import { Hueso } from '../ui/Esqueletos'
-import { hora } from '../ui/formato'
+import { hora, plural } from '../ui/formato'
 import { Icono } from '../ui/Icono'
 import { avancesDeCocina, colaDeCocina, resumenCocina, ROLES_COCINA, type SesionPersonal } from './logica'
 import { CabeceraPersonal, Puerta } from './Puerta'
@@ -46,16 +46,20 @@ export function VistaCocina({ restaurante, sesion, cuentas }: { restaurante: str
 
   return (
     <main className="pagina pagina--personal">
-      <CabeceraPersonal restaurante={restaurante} sesion={sesion} />
-      <h1 className="seccion-titulo tablero__titulo">Cocina</h1>
-      {resumen.length > 0 && <p className="ayuda cocina__resumen">{resumen.join(' · ')}</p>}
+      <CabeceraPersonal restaurante={restaurante} pastilla="Cocina" />
+
+      <section className="hero">
+        <p className="hero__etiqueta">{sesion.nombre ?? 'Cocina'}</p>
+        <h1 className="hero__titulo">{cola.length > 0 ? `${plural(cola.length, 'mesa')} por preparar` : 'Todo al día'}</h1>
+        <p className="hero__texto">{resumen.length > 0 ? resumen.join(' · ') : 'Lo que el mesero confirme aparece aquí al instante.'}</p>
+      </section>
 
       {cola.length === 0 ? (
-        <Vacio icono="fuego" titulo="Nada por preparar" texto="Lo que el mesero confirme aparece aquí al instante." />
+        <Vacio icono="fuego" titulo="Nada por preparar" />
       ) : (
         <div className="cocina">
           {cola.map((mesa) => (
-            <section key={mesa.token} className="tarjeta cocina__mesa">
+            <section key={mesa.token} className="tarjeta ronda cocina__mesa">
               <header className="ronda__cabeza">
                 <h2>Mesa {mesa.numeroMesa}</h2>
                 <span>Desde las {hora(mesa.desde)}</span>

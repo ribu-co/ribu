@@ -47,19 +47,27 @@ export function VistaTablero({
   cuentas: Cuenta[]
 }) {
   const resumenes = mesas.map((mesa) => resumirMesa(mesa, cuentas))
-  const porConfirmar = resumenes.filter((r) => r.porConfirmar > 0).length
+  const conPendientes = resumenes.filter((r) => r.porConfirmar > 0)
+  const primera = conPendientes[0]
 
   return (
     <main className="pagina pagina--personal">
-      <CabeceraPersonal restaurante={restaurante} sesion={sesion} />
-      <h1 className="seccion-titulo tablero__titulo">Mesas</h1>
+      <CabeceraPersonal restaurante={restaurante} pastilla="Mesero" />
 
-      {porConfirmar > 0 && (
-        <p className="aviso aviso--ambar">
-          <Icono nombre="reloj" tamano={18} />
-          <span>{plural(porConfirmar, 'mesa')} con pedidos por confirmar. Sin confirmar, no llegan a cocina.</span>
-        </p>
-      )}
+      <section className="hero">
+        <p className="hero__etiqueta">{sesion.nombre ?? 'Mesas del restaurante'}</p>
+        <h1 className="hero__titulo">{primera ? `${plural(conPendientes.length, 'mesa')} por confirmar` : 'Tus mesas'}</h1>
+        {primera ? (
+          <Enlace a={`/mesero/${encodeURIComponent(primera.mesa.token)}`} className="hero__resumen hero__resumen--enlace">
+            <span>Ir a la mesa {primera.mesa.numero}. Sin confirmar, no llega a cocina.</span>
+            <span className="icono-circulo">
+              <Icono nombre="flecha" tamano={16} />
+            </span>
+          </Enlace>
+        ) : (
+          <p className="hero__texto">Aquí aparece lo que pidan las mesas, al instante.</p>
+        )}
+      </section>
 
       {mesas.length === 0 ? (
         <Vacio icono="mesa" titulo="Este restaurante aún no tiene mesas" texto="Las crea quien administra el restaurante." />
@@ -67,7 +75,7 @@ export function VistaTablero({
         <ul className="tablero">
           {resumenes.map(({ mesa, porConfirmar: pendientes, estados }) => (
             <li key={mesa.token}>
-              <Enlace a={`/mesero/${encodeURIComponent(mesa.token)}`} className="tarjeta tarjeta--boton mesa-tablero" >
+              <Enlace a={`/mesero/${encodeURIComponent(mesa.token)}`} className="tarjeta tarjeta--boton mesa-tablero">
                 <span className="mesa-tablero__cabeza" data-atencion={pendientes > 0} data-libre={mesa.estado === 'libre'}>
                   <span className="mesa-tablero__etiqueta">Mesa</span>
                   <span className="mesa-tablero__numero">{mesa.numero}</span>

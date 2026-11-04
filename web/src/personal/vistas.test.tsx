@@ -107,54 +107,57 @@ test('el tablero muestra cada mesa con su estado y enlaza a su detalle', () => {
   expect(html).toContain('2 por confirmar')
   expect(html).toContain('Saldo $16.200')
   expect(html).toContain('href="/mesero/demo-mesa-3"')
-  expect(html).toContain('1 mesa con pedidos por confirmar')
+  expect(html).toContain('1 mesa por confirmar')
+  expect(html).toContain('Ir a la mesa 3')
 })
 
-test('el detalle muestra toda la orden: rondas, nota, estado, origen, motivo, totales, división y pagos', () => {
-  const html = pintar(
-    <VistaMesaMesero
-      mesa={mesa}
-      restaurante={restaurante}
-      sesion={mesero}
-      cuenta={cuenta({
-        lineas: [
-          linea({ id: 'a', ronda: 1, nombre: 'Mojarra frita', nota: 'sin ensalada', estado: 'entregada', cantidadCubierta: 1, precio: 32_400 }),
-          linea({ id: 'b', ronda: 2, estado: 'pendiente', cantidad: 2 }),
-          linea({ id: 'c', ronda: 2, nombre: 'Agua en botella', estado: 'rechazada', motivo: 'Se acabó', origen: 'personal' }),
-        ],
-        division: { partes: 2, montos: [16_200, 16_200] },
-        pagos: [pago({ parte: 1, subtotal: 16_200, total: 17_000 })],
-        consumo: 32_400,
-        pagado: 16_200,
-        enCobro: 0,
-        porPagar: 16_200,
-      })}
-    />,
-  )
+const cuentaCompleta = cuenta({
+  lineas: [
+    linea({ id: 'a', ronda: 1, nombre: 'Mojarra frita', nota: 'sin ensalada', estado: 'entregada', cantidadCubierta: 1, precio: 32_400 }),
+    linea({ id: 'b', ronda: 2, estado: 'pendiente', cantidad: 2 }),
+    linea({ id: 'c', ronda: 2, nombre: 'Agua en botella', estado: 'rechazada', motivo: 'Se acabó', origen: 'personal' }),
+  ],
+  division: { partes: 2, montos: [16_200, 16_200] },
+  pagos: [pago({ parte: 1, subtotal: 16_200, total: 17_000 })],
+  consumo: 32_400,
+  pagado: 16_200,
+  enCobro: 0,
+  porPagar: 16_200,
+})
+
+test('la pestaña de pedido muestra cada línea: ronda, nota, estado, origen, motivo y acciones', () => {
+  const html = pintar(<VistaMesaMesero mesa={mesa} restaurante={restaurante} sesion={mesero} cuenta={cuentaCompleta} />)
   for (const texto of ['Ronda 1', 'Ronda 2', 'Mojarra frita', '“sin ensalada”', 'Por confirmar', 'Rechazado', 'Se acabó', 'Pidió el cliente', 'Pidió el personal', '1 de 1 en un pago']) {
     expect(html).toContain(texto)
   }
+  expect(html).toContain('1 línea por confirmar')
+  expect(html).toContain('Consumo $32.400 · Por pagar $16.200')
+  expect(html).toContain('href="/m/demo-mesa-3"')
+  expect(html).toContain('Tomar pedido')
+  expect(html).toContain('Confirmar y enviar a cocina')
+  expect(html).toContain('aria-label="Rechazar: Jugo de corozo"')
+  expect(html).not.toContain('aria-label="Anular: Mojarra frita"')
+})
+
+test('la pestaña de cuenta muestra los totales, la división y los pagos', () => {
+  const html = pintar(<VistaMesaMesero mesa={mesa} restaurante={restaurante} sesion={mesero} cuenta={cuentaCompleta} pestanaInicial="cuenta" />)
   for (const texto of ['Consumo', 'Pagado', 'En cobro', 'Por pagar', '$32.400', '$16.200']) expect(html).toContain(texto)
   expect(html).toContain('Dividida en 2 partes')
   expect(html).toContain('1 de 2 pagadas')
   expect(html).toContain('Pagos de la mesa')
   expect(html).toContain('Efectivo · Por ti')
   expect(html).toContain('Factura emitida')
-  expect(html).toContain('href="/m/demo-mesa-3"')
-  expect(html).toContain('Confirmar y enviar a cocina')
-  expect(html).toContain('aria-label="Rechazar: Jugo de corozo"')
-  expect(html).not.toContain('aria-label="Anular: Mojarra frita"')
 })
 
 test('liberar queda deshabilitado y dice qué falta; sin pendientes y pagada se puede', () => {
   const conSaldo = pintar(
-    <VistaMesaMesero mesa={mesa} restaurante={restaurante} sesion={mesero} cuenta={cuenta({ lineas: [linea({ estado: 'pendiente' }), linea({ id: 'x', precio: 8_100 })], consumo: 8_100, porPagar: 8_100 })} />,
+    <VistaMesaMesero mesa={mesa} restaurante={restaurante} sesion={mesero} pestanaInicial="cuenta" cuenta={cuenta({ lineas: [linea({ estado: 'pendiente' }), linea({ id: 'x', precio: 8_100 })], consumo: 8_100, porPagar: 8_100 })} />,
   )
   expect(conSaldo).toMatch(/<button[^>]*disabled=""[^>]*><span[^>]*>Liberar la mesa/)
   expect(conSaldo).toContain('Falta resolver: 1 producto por confirmar, $8.100 de saldo.')
 
   const pagada = pintar(
-    <VistaMesaMesero mesa={mesa} restaurante={restaurante} sesion={mesero} cuenta={cuenta({ estado: 'pagada', lineas: [linea({ cantidadCubierta: 1 })], consumo: 8_100, pagado: 8_100 })} />,
+    <VistaMesaMesero mesa={mesa} restaurante={restaurante} sesion={mesero} pestanaInicial="cuenta" cuenta={cuenta({ estado: 'pagada', lineas: [linea({ cantidadCubierta: 1 })], consumo: 8_100, pagado: 8_100 })} />,
   )
   expect(pagada).not.toMatch(/<button[^>]*disabled=""[^>]*><span[^>]*>Liberar la mesa/)
   expect(pagada).not.toContain('Falta resolver')
@@ -162,7 +165,7 @@ test('liberar queda deshabilitado y dice qué falta; sin pendientes y pagada se 
 
 test('una mesa libre invita a tomar pedido', () => {
   const html = pintar(<VistaMesaMesero mesa={{ ...mesa, estado: 'libre', cuentaId: null }} restaurante={restaurante} sesion={mesero} cuenta={null} />)
-  expect(html).toContain('Esta mesa está libre')
+  expect(html).toContain('Mesa libre')
   expect(html).toContain('Tomar pedido')
 })
 
@@ -183,5 +186,7 @@ test('la cocina no muestra precios y agrupa por mesa', () => {
 })
 
 test('sin nada por preparar, la cocina lo dice', () => {
-  expect(pintar(<VistaCocina restaurante={restaurante.nombre} sesion={cocina} cuentas={[]} />)).toContain('Nada por preparar')
+  const html = pintar(<VistaCocina restaurante={restaurante.nombre} sesion={cocina} cuentas={[]} />)
+  expect(html).toContain('Nada por preparar')
+  expect(html).toContain('Todo al día')
 })

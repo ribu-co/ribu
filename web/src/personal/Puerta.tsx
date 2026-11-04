@@ -88,20 +88,28 @@ export function Puerta({ roles, pantalla, children }: { roles: readonly Rol[]; p
   return <>{children(acceso.sesion)}</>
 }
 
-/** La cabecera de las pantallas del personal: de dónde es, quién entró y cómo salir. */
-export function CabeceraPersonal({ restaurante, sesion, extra }: { restaurante: string; sesion: SesionPersonal; extra?: ReactNode }) {
+/**
+ * La misma cabecera de la página de la mesa: marca a la izquierda y pastilla a la derecha. El tablero y la
+ * cocina llevan el botón de salir; dentro de una mesa, la flecha para volver.
+ */
+export function CabeceraPersonal({ restaurante, pastilla, volver }: { restaurante: string; pastilla: string; volver?: string }) {
   return (
     <header className="cabecera">
       <div className="marca">
-        <span className="marca__logo" aria-hidden="true">
-          <span />
-        </span>
+        {volver ? (
+          <Enlace a={volver} className="icono-boton" etiqueta="Volver a las mesas">
+            <Icono nombre="izquierda" tamano={18} />
+          </Enlace>
+        ) : (
+          <span className="marca__logo" aria-hidden="true">
+            <span />
+          </span>
+        )}
         <span className="marca__nombre">{restaurante}</span>
       </div>
       <div className="cabecera-personal__acciones">
-        {extra}
-        <span className="pastilla cabecera-personal__quien">{sesion.nombre ?? NOMBRE_ROL[sesion.rol]}</span>
-        <BotonSalir />
+        <span className="pastilla">{pastilla}</span>
+        {!volver && <BotonSalir />}
       </div>
     </header>
   )

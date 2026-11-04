@@ -11,14 +11,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  flex: none;
 }
 
-.cabecera-personal__quien {
-  max-width: 34vw;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.hero__resumen--enlace {
+  text-decoration: none;
+}
+
+.hero .hero__resumen--enlace {
+  margin-top: 12px;
 }
 
 .entrada-personal {
@@ -48,15 +49,11 @@
 
 /* El tablero de mesas */
 
-.tablero__titulo {
-  margin-top: 8px;
-}
-
 .tablero {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .mesa-tablero {
@@ -122,35 +119,6 @@
 
 /* El detalle de una mesa */
 
-.mesa-cabeza {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.mesa-cabeza__titulo {
-  font-size: 1.6rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-}
-
-.mesa-cabeza__estados {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.mesa-cabeza__pedir {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 0.95rem;
-}
-
-.mesa-detalle,
 .mesa-detalle__cuenta,
 .cobro-mesa,
 .liberar-mesa,
@@ -158,12 +126,6 @@
   display: grid;
   gap: 12px;
   align-content: start;
-}
-
-.ronda__cabeza h2 {
-  font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
 }
 
 .linea__meta {
@@ -189,14 +151,11 @@
 
 /* La cocina */
 
-.cocina__resumen {
-  margin: 0 2px 14px;
-}
-
 .cocina {
   display: grid;
   gap: 12px;
   align-items: start;
+  margin-top: 14px;
 }
 
 /* Movimiento: corto y solo para confirmar que algo cambió. */
@@ -209,9 +168,7 @@
 }
 
 .tablero > li,
-.cocina__mesa,
-.mesa-detalle .ronda,
-.mesa-detalle__cuenta > * {
+.cocina__mesa {
   animation: personal-entra 220ms ease-out backwards;
 }
 
@@ -235,9 +192,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tablero > li,
-  .cocina__mesa,
-  .mesa-detalle .ronda,
-  .mesa-detalle__cuenta > * {
+  .cocina__mesa {
     animation: none;
   }
 
@@ -254,11 +209,6 @@
 }
 
 @media (min-width: 820px) {
-  .mesa-detalle {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    align-items: start;
-  }
-
   .cocina {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
