@@ -14,18 +14,21 @@ Ribu gestiona los pedidos, los pagos y la facturación electrónica de un restau
 - **Lecturas:** la web escucha Firestore, así toda la mesa ve los cambios al instante.
 - **Escrituras:** solo el backend escribe en Firestore. La web nunca envía precios, totales ni estados de pago.
 - **Credenciales:** van en Secret Manager, nunca en Firestore ni en la web. En el reto todos los restaurantes usan las mismas credenciales del sandbox. En producción, cada NIT necesitaría las suyas.
-- **Datos iniciales:** un script crea la cuenta de la plataforma y el restaurante de la demo, sin cambiar los tokens de sus mesas si se corre otra vez. Los demás restaurantes se crean desde el panel.
+- **Datos iniciales:** `POST /api/interno/semilla` crea la cuenta de la plataforma y el restaurante de la demo, sin cambiar los tokens de sus mesas si se corre otra vez. Ver [Despliegue](../docs/despliegue.md). Los demás restaurantes se crean desde `/plataforma`.
 
 | Documento | Formato | Quién lo lee |
 |---|---|---|
-| `mesas/{token}` | `Mesa` | Quien tenga el link. El personal puede listarlas |
+| `mesas/{token}` | `Mesa` | Quien tenga el link. El personal de ese restaurante y la plataforma pueden listarlas |
 | `restaurantes/{id}` | `Restaurante` | Cualquier sesión. La plataforma puede listarlos |
 | `restaurantes/{id}/personal/{uid}` | `Personal` | El administrador de ese restaurante y la plataforma |
 | `restaurantes/{id}/productos/{id}` | `Producto` | Cualquier sesión |
-| `restaurantes/{id}/cuentas/{id}` | `Cuenta` | Quien tenga el id, que sale de la mesa. El personal puede listarlas |
+| `restaurantes/{id}/cuentas/{id}` | `Cuenta` | Quien tenga el id, que sale de la mesa. El mesero y la cocina listan las abiertas y pagadas. El administrador y la plataforma, todas |
 | `restaurantes/{id}/pagos/{id}` | `Pago` | Quien tenga el id, que sale de la cuenta. Solo el administrador y la plataforma pueden listarlos |
-| `restaurantes/{id}/facturas/{pagoId}` | `Factura` | Solo quien creó el pago y el personal. Solo el administrador y la plataforma pueden listarlas |
+| `restaurantes/{id}/facturas/{pagoId}` | `Factura` | Solo quien creó el pago, el personal de ese restaurante y la plataforma. Solo el administrador y la plataforma pueden listarlas |
 | `restaurantes/{id}/notas/{id}` | `Nota` | Solo el administrador y la plataforma |
+| `referencias/{id}` | `Referencia`, en `flujo/modelo.ts` | Nadie: es solo del backend |
+
+El detalle está en [Arquitectura](../docs/arquitectura.md).
 
 ## Reglas
 
@@ -65,8 +68,9 @@ Ribu gestiona los pedidos, los pagos y la facturación electrónica de un restau
 
 **Confirmación del pago**
 
-- El webhook avisa, pero antes de marcar el pago se confirma con `consultarCobro`.
-- Mientras la pantalla de pago esté abierta, la web llama a `verificarPago`, como respaldo.
+- El webhook llega a `/api/webhooks/factus-pay/<valor>`. Avisa, pero antes de marcar el pago se confirma con `consultarCobro`. El último segmento es obligatorio y el código no lo lee: la referencia dice de qué restaurante es el recaudo.
+- Mientras la pantalla de pago esté abierta, la web llama a `verificarPago` cada 5 segundos, como respaldo.
+- Cada minuto, `barridoProgramado` pregunta por los cobros que llegan a su vencimiento, antes de vencerlos.
 - Si llega `paid` de un pago vencido o cancelado y sus líneas siguen libres, vale. Si otro pago ya las cubrió, queda como `pago_duplicado`, sin factura, y el personal devuelve el dinero por fuera.
 
 **Factura**
@@ -98,7 +102,7 @@ Probado el 4 de noviembre de 2026, con datos inventados. La DIAN validó todos e
 
 Lo que hay que tener en cuenta al programar:
 
-- **Cloud Functions:** desde `us-central1`, Factus y Factus Pay responden normalmente; Cloudflare no bloquea esa salida. Solo se comprobó la conexión, sin emitir documentos desde allí.
+- **Cloud Functions:** desde `us-central1`, Factus y Factus Pay responden normalmente; Cloudflare no bloquea esa salida. La app desplegada ya emitió facturas desde allí.
 - **Token:** dura 3.600 segundos y trae `refresh_token`.
 - **Rangos:** la lista viene en `data.data`, y `document` devuelve el nombre, no el código. En el sandbox están activos el 389 (factura), el 390 y el 1776 (nota crédito) y el 391 (nota débito). Como hay dos de nota crédito, envía siempre `numbering_range_id`.
 - **`errors`:** en facturas es un objeto y en notas un arreglo. Con `is_validated: true` trae notificaciones como `FAJ44b` o `CBF02`, que no bloquean nada. Para detectar un rechazo, busca la palabra "Rechazo" en el texto.
@@ -109,7 +113,7 @@ Lo que hay que tener en cuenta al programar:
 
 ## Probado en el sandbox de Factus Pay
 
-Probado el 4 de noviembre de 2026, sin completar ningún pago:
+Probado el 4 de noviembre de 2026. Los pagos se completaron en el simulador, desde la app desplegada: Factus Pay marcó los recaudos como `paid`.
 
 - **Monto:** de 10.000 a 12.000.000. Por fuera responde 422, aunque la documentación diga 1.000 a 12.100.000. Se puede enviar como número o como texto.
 - **Crear:** el recaudo llega en `data`, en `ready`, con `qr` y `breb_key`. Responde 200 si se envía `expiration` y 201 si no.
@@ -119,13 +123,14 @@ Probado el 4 de noviembre de 2026, sin completar ningún pago:
 - **Fechas:** llegan como `04-11-2026 12:00:40 PM`, en hora de Colombia. Hay que convertirlas a UTC.
 - **Errores:** 404 trae `{ status, message, data: null }`, y una validación trae `{ message, errors }`.
 - **Listar:** trae `data`, `links` y `meta`, sin `qr`.
+- **Webhook:** registrado en el panel. La ruta responde 200 con la llave correcta y 401 con una errada.
 
 ## Por confirmar
 
 - **Correo:** qué direcciones autoriza el sandbox. Sin esto, la demo no puede mostrar el envío con `send-email`.
-- **Rechazo real:** no se forzó a propósito, porque bloquearía el rango de todos los equipos. Se fuerza con un NIT y un `dv` errado, y hay que eliminarlo en seguida.
+- **Rechazo real:** no se forzó a propósito, porque bloquearía el rango de todos los equipos. `Comprador` no lleva `dv`, porque lo calcula Factus: falta definir cómo provocarlo. Hay que eliminarlo en seguida.
 - **Sin impuesto:** cómo se envía `ninguno`. La demo usa INC.
-- **Pago:** falta completar uno en el simulador, que solo funciona escaneando el QR con la cámara. Hay que ver qué trae la respuesta en `paid`, y qué estado devuelve cada error: `tx_unknown`, `tx_provider_unavailable`, `tx_timeout` y `tx_risk_control`.
+- **Errores del simulador:** qué estado devuelve cada uno: `tx_unknown`, `tx_provider_unavailable`, `tx_timeout` y `tx_risk_control`.
 - **Estado `created`:** aparece en el filtro del panel, pero no en la documentación ni en las pruebas.
-- **Webhook:** si el simulador lo dispara.
+- **Webhook:** no se ha visto llegar un aviso real de Factus Pay.
 - **Parte igual:** que un contador acepte facturarla como una sola línea de consumo.
