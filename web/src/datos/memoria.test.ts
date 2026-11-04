@@ -172,7 +172,7 @@ describe('pedido', () => {
   test('anular devuelve el stock, pero no si la línea ya está en un pago', async () => {
     const cuenta = await pedidoDemoConfirmado()
     const [mojarra, jugo] = cuenta.lineas
-    await cliente.crearPago(MESA, pagoCliente({ tipo: 'productos', items: [{ lineaId: jugo!.id, cantidad: 1 }] }))
+    await cliente.crearPago(MESA, pagoCliente({ tipo: 'productos', items: [{ lineaId: jugo!.id, cantidad: 2 }] }))
     expect(await esperarError(mesero.anularLineas(MESA, { lineaIds: [jugo!.id], motivo: 'error' }))).toBe('LINEA_CON_PAGO')
     await mesero.anularLineas(MESA, { lineaIds: [mojarra!.id], motivo: 'Se demoró mucho' })
     expect(admin.estado().productos['mojarra-frita']).toMatchObject({ stock: 2, disponible: true })
@@ -297,11 +297,29 @@ describe('pago con Factus Pay', () => {
     expect(await esperarError(cliente.crearPago(MESA, { ...pagoCliente({ tipo: 'saldo' }), medio: 'efectivo' }))).toBe('SIN_PERMISO')
   })
 
-  test('el mínimo de Factus Pay aplica al total', async () => {
-    const cuenta = await mesero.agregarLineas(MESA, { items: [{ productoId: 'agua', cantidad: 1, nota: null }] })
-    expect(cuenta.consumo).toBe(4_050)
+  test('el mínimo de Factus Pay aplica al total y a cada parte', async () => {
+    await mesero.agregarLineas(MESA, { items: [{ productoId: 'agua', cantidad: 1, nota: null }] })
+    expect(await esperarError(cliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' })))).toBe('MONTO_FUERA_DE_RANGO')
+    const cuenta = await mesero.agregarLineas(MESA, { items: [{ productoId: 'posta-negra', cantidad: 1, nota: null }] })
+    expect(cuenta.consumo).toBe(41_850)
     await mesero.dividirEnPartesIguales(MESA, { partes: 4 })
     expect(await esperarError(mesero.dividirEnPartesIguales(MESA, { partes: 5 }))).toBe('MONTO_FUERA_DE_RANGO')
+  })
+
+  test('crear un pago vence antes los cobros cuyo QR ya pasó, aunque nadie los consultara', async () => {
+    await pedidoDemoConfirmado()
+    const abandonado = await cliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' }))
+    expect(await esperarError(otroCliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' })))).toBe('PAGO_EN_CURSO')
+    mundo.avanzar(COBRO_EXPIRACION_SEGUNDOS)
+    const nuevo = await otroCliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' }))
+    expect(nuevo.subtotal).toBe(91_800)
+    expect(cliente.estado().pagos[abandonado.id]?.estado).toBe('vencido')
+  })
+
+  test('la cocina no divide ni cobra', async () => {
+    await pedidoDemoConfirmado()
+    expect(await esperarError(cocina.dividirEnPartesIguales(MESA, { partes: 2 }))).toBe('SIN_PERMISO')
+    expect(await esperarError(cocina.crearPago(MESA, { ...pagoCliente({ tipo: 'saldo' }), medio: 'efectivo' }))).toBe('SIN_PERMISO')
   })
 })
 
@@ -338,9 +356,72 @@ describe('dividir la cuenta', () => {
     const mio = await cliente.crearPago(MESA, pagoCliente({ tipo: 'productos', items: [{ lineaId: jugo.id, cantidad: 2 }] }))
     expect(mio).toMatchObject({ subtotal: 16_200 })
     const otro = otroCliente.crearPago(MESA, pagoCliente({ tipo: 'productos', items: [{ lineaId: jugo.id, cantidad: 1 }] }))
-    expect(await esperarError(otro)).toBe('CANTIDAD_NO_DISPONIBLE')
+    expect(await esperarError(otro)).toBe('PAGO_EN_CURSO')
+    const deMas = otroCliente.crearPago(MESA, pagoCliente({ tipo: 'productos', items: [{ lineaId: jugo.id, cantidad: 3 }] }))
+    expect(await esperarError(deMas)).toBe('CANTIDAD_NO_DISPONIBLE')
     const resto = await otroCliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' }))
     expect(resto.subtotal).toBe(91_800 - 16_200)
+  })
+
+  test('la plata tardía de una parte cancelada no vale si la división ya no existe', async () => {
+    await pedidoDemoConfirmado()
+    await cliente.dividirEnPartesIguales(MESA, { partes: 2 })
+    const parte1 = await cliente.crearPago(MESA, pagoCliente({ tipo: 'parte_igual', parte: 1 }))
+    await cliente.cancelarPago(MESA, parte1.id)
+    await otroCliente.quitarDivision(MESA)
+
+    cliente.simulador?.pagarCobro(parte1.id)
+    expect(cliente.estado().pagos[parte1.id]).toMatchObject({ estado: 'pagado', incidencia: 'pago_duplicado', estadoFactura: 'sin_emitir' })
+    expect(cliente.estado().cuentas[parte1.cuentaId]).toMatchObject({ pagado: 0, porPagar: 91_800 })
+
+    const saldo = await otroCliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' }))
+    expect(saldo.subtotal).toBe(91_800)
+    otroCliente.simulador?.pagarCobro(saldo.id)
+    expect(cliente.estado().cuentas[parte1.cuentaId]).toMatchObject({ pagado: 91_800, porPagar: 0, estado: 'pagada' })
+  })
+
+  test('la plata tardía de una parte cancelada vale si su división sigue y nadie tomó esa parte', async () => {
+    await pedidoDemoConfirmado()
+    await cliente.dividirEnPartesIguales(MESA, { partes: 2 })
+    const parte1 = await cliente.crearPago(MESA, pagoCliente({ tipo: 'parte_igual', parte: 1 }))
+    await cliente.cancelarPago(MESA, parte1.id)
+    cliente.simulador?.pagarCobro(parte1.id)
+    expect(cliente.estado().pagos[parte1.id]).toMatchObject({ estado: 'pagado', incidencia: null })
+    expect(cliente.estado().cuentas[parte1.cuentaId]).toMatchObject({ pagado: 45_900, porPagar: 45_900 })
+  })
+
+  test('con todas las partes pagadas, lo que se pide después se divide y la mesa se libera', async () => {
+    await pedidoDemoConfirmado()
+    await cliente.dividirEnPartesIguales(MESA, { partes: 2 })
+    for (const parte of [1, 2]) {
+      const pago = await cliente.crearPago(MESA, pagoCliente({ tipo: 'parte_igual', parte }))
+      cliente.simulador?.pagarCobro(pago.id)
+    }
+    const posta = await mesero.agregarLineas(MESA, { items: [{ productoId: 'posta-negra', cantidad: 1, nota: null }] })
+    expect(posta).toMatchObject({ pagado: 91_800, porPagar: 37_800 })
+
+    const redividida = await otroCliente.dividirEnPartesIguales(MESA, { partes: 2 })
+    expect(redividida.division).toEqual({ partes: 2, montos: [18_900, 18_900] })
+    await mesero.crearPago(MESA, { ...pagoCliente({ tipo: 'parte_igual', parte: 1 }), medio: 'efectivo' })
+    const parte2 = await otroCliente.crearPago(MESA, pagoCliente({ tipo: 'parte_igual', parte: 2 }))
+    otroCliente.simulador?.pagarCobro(parte2.id)
+    expect(cliente.estado().cuentas[posta.id]).toMatchObject({ pagado: 129_600, porPagar: 0, estado: 'pagada' })
+    expect((await mesero.liberarMesa(MESA)).estado).toBe('libre')
+  })
+
+  test('con todas las partes pagadas se puede quitar la división y pagar lo nuevo como saldo', async () => {
+    await pedidoDemoConfirmado()
+    await cliente.dividirEnPartesIguales(MESA, { partes: 2 })
+    for (const parte of [1, 2]) {
+      const pago = await cliente.crearPago(MESA, pagoCliente({ tipo: 'parte_igual', parte }))
+      cliente.simulador?.pagarCobro(pago.id)
+    }
+    await mesero.agregarLineas(MESA, { items: [{ productoId: 'posta-negra', cantidad: 1, nota: null }] })
+    const sinDivision = await cliente.quitarDivision(MESA)
+    expect(sinDivision).toMatchObject({ division: null, pagado: 91_800, porPagar: 37_800 })
+    const saldo = await mesero.crearPago(MESA, { ...pagoCliente({ tipo: 'saldo' }), medio: 'tarjeta_debito' })
+    expect(saldo.subtotal).toBe(37_800)
+    expect((await mesero.liberarMesa(MESA)).estado).toBe('libre')
   })
 })
 
@@ -415,11 +496,11 @@ describe('notas', () => {
     const nota = await admin.crearNota(pago.id, {
       tipo: 'debito',
       concepto: 'otros',
-      motivo: 'Se olvidó cobrar un agua',
-      lineas: [{ descripcion: 'Agua en botella', cantidad: 1, precio: 4_050 }],
+      motivo: 'Se olvidó cobrar una limonada',
+      lineas: [{ descripcion: 'Limonada de coco', cantidad: 1, precio: 12_000 }],
       medio: 'factus_pay',
     })
-    expect(nota).toMatchObject({ estado: 'sin_emitir', devolucion: 'no_aplica', cobro: { monto: 4_050 } })
+    expect(nota).toMatchObject({ estado: 'sin_emitir', devolucion: 'no_aplica', cobro: { monto: 12_000 } })
     admin.simulador?.pagarCobro(nota.id)
     mundo.responderDian()
     expect(admin.estado().notas[nota.id]?.estado).toBe('emitida')

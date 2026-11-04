@@ -53,6 +53,10 @@ export interface EstadoMemoria {
   personal: PersonaPersonal[]
   /** Por cuenta: las unidades de cada línea que congeló la división en partes iguales. */
   coberturaDivision: Record<string, Record<string, number>>
+  /** Por cuenta: la división vigente. Cada vez que se divide de nuevo cambia. */
+  divisionVigente: Record<string, string>
+  /** Por pago de una parte igual: la división a la que pertenece esa parte. */
+  divisionDePago: Record<string, string>
   respuestaDian: RespuestaDian
   secuencia: number
 }
@@ -102,10 +106,15 @@ function estadoInicial(semilla: Semilla): EstadoMemoria {
     notas: {},
     personal: structuredClone(semilla.personal),
     coberturaDivision: {},
+    divisionVigente: {},
+    divisionDePago: {},
     respuestaDian: 'emitida',
     secuencia: 0,
   }
 }
+
+/** Un estado guardado por una versión anterior de la demo puede no traer los campos nuevos. */
+const completar = (leido: EstadoMemoria): EstadoMemoria => ({ ...leido, divisionVigente: leido.divisionVigente ?? {}, divisionDePago: leido.divisionDePago ?? {} })
 
 const correoDe = (comprador: Comprador) => comprador.correo?.trim() || null
 const correoValido = (correo: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
@@ -164,7 +173,11 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
   const almacenSesion = opciones.almacenSesion
 
   const inicial = () => estadoInicial(opciones.semilla ?? semillaDemo())
-  let estado: EstadoMemoria = almacen?.leer() ?? inicial()
+  const cargar = () => {
+    const leido = almacen?.leer()
+    return leido ? completar(leido) : inicial()
+  }
+  let estado: EstadoMemoria = cargar()
   let sesion: Sesion | null = almacenSesion?.leer() ?? null
   const revisiones = new Set<() => void>()
 
@@ -178,7 +191,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
   }
 
   almacen?.alCambiarFuera(() => {
-    estado = almacen.leer() ?? inicial()
+    estado = cargar()
     avisar()
   })
 
@@ -259,6 +272,12 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     return cuenta ?? fallar('NO_ENCONTRADO', 'La mesa no tiene pedido')
   }
 
+  /** Dividir, pagar y la factura: el cliente o el mesero y la administración del restaurante, no la cocina. */
+  function requerirQuienPaga(mesa: Mesa) {
+    const actual = requerirSesion()
+    return actual.rol === 'cliente' ? actual : requerirPersonal(mesa.restauranteId, ['mesero', 'admin'])
+  }
+
   /** Para las órdenes del personal sobre una mesa: tiene que ser de su restaurante. */
   function mesaDelPersonal(token: string, roles?: readonly Rol[]) {
     const mesa = mesaPorToken(token)
@@ -318,10 +337,18 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     recalcular(cuenta)
   }
 
+  /** Solo cuentan las partes de la división vigente: las de una división anterior ya no son de nadie. */
   const partesConPago = (cuenta: Cuenta, estados: readonly Pago['estado'][]) =>
     new Set(
       cuenta.pagos
-        .filter((p) => p.parte !== null && p.incidencia === null && estados.includes(p.estado))
+        .filter(
+          (p) =>
+            p.parte !== null &&
+            p.incidencia === null &&
+            estados.includes(p.estado) &&
+            estado.divisionDePago[p.id] !== undefined &&
+            estado.divisionDePago[p.id] === estado.divisionVigente[cuenta.id],
+        )
         .map((p) => p.parte as number),
     )
 
@@ -477,6 +504,14 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     if (pago.estado === 'esperando_pago' && vencido(pago.cobro)) soltarPago(pago, 'vencido')
   }
 
+  /** Quien cerró la pestaña no vuelve a consultar su cobro: antes de cobrar otra cosa se vencen los viejos. */
+  function vencerCobrosViejos(cuenta: Cuenta) {
+    for (const { id } of cuenta.pagos) {
+      const pago = estado.pagos[id]
+      if (pago) revisarVencimiento(pago)
+    }
+  }
+
   function lineasFactura(items: readonly ItemPago[], impuesto: Pago['impuesto']): LineaFactura[] {
     return items.map((item) => ({
       codigo: item.lineaId ?? 'consumo',
@@ -510,11 +545,15 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         const pago = estado.pagos[referencia]
         if (!pago?.cobro || pago.estado === 'pagado') return
         if (pago.estado === 'esperando_pago') return marcarPagado(pago)
-        // Llegó la plata de un QR vencido o cancelado: vale si nadie más cubrió lo mismo.
+        // Llegó la plata de un QR vencido o cancelado: vale si nadie más cubrió lo mismo. Una parte
+        // igual solo vale si su división sigue vigente, porque esa división es la que congela el consumo.
         const cuenta = estado.cuentas[pago.cuentaId]
         const parteLibre =
           pago.parte === null ||
-          (cuenta !== undefined && !partesConPago(cuenta, ['pagado', 'esperando_pago']).has(pago.parte))
+          (cuenta !== undefined &&
+            cuenta.division !== null &&
+            estado.divisionDePago[pago.id] === estado.divisionVigente[cuenta.id] &&
+            !partesConPago(cuenta, ['pagado', 'esperando_pago']).has(pago.parte))
         if (cuenta && parteLibre && itemsLibres(cuenta, pago.items)) {
           cubrir(cuenta, pago.items, 1)
           return marcarPagado(pago)
@@ -790,8 +829,10 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     dividirEnPartesIguales: (token, solicitud) =>
       orden(() => {
-        requerirSesion()
-        const cuenta = cuentaAbierta(mesaPorToken(token))
+        const mesa = mesaPorToken(token)
+        requerirQuienPaga(mesa)
+        const cuenta = cuentaAbierta(mesa)
+        vencerCobrosViejos(cuenta)
         const partes = solicitud?.partes
         if (!Number.isInteger(partes) || partes < PARTES_MINIMAS || partes > PARTES_MAXIMAS) {
           fallar('CUERPO_INVALIDO', `La cuenta se divide entre ${PARTES_MINIMAS} y ${PARTES_MAXIMAS}`)
@@ -816,6 +857,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
           }
         }
         estado.coberturaDivision[cuenta.id] = cobertura
+        estado.divisionVigente[cuenta.id] = `division-${aleatorio(10)}`
         cuenta.division = { partes, montos }
         recalcular(cuenta)
         return cuenta
@@ -823,13 +865,21 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     quitarDivision: (token) =>
       orden(() => {
-        requerirSesion()
-        const cuenta = cuentaAbierta(mesaPorToken(token))
+        const mesa = mesaPorToken(token)
+        requerirQuienPaga(mesa)
+        const cuenta = cuentaAbierta(mesa)
         if (!cuenta.division) return cuenta
-        if (partesConPago(cuenta, ['pagado', 'esperando_pago']).size > 0) {
-          fallar('DIVISION_ACTIVA', 'Ya hay partes cobrándose o pagadas')
+        vencerCobrosViejos(cuenta)
+        if (!divisionActiva(cuenta)) {
+          // Todas las partes están pagadas: lo que cubrían queda cubierto y lo nuevo se paga como saldo.
+          delete estado.coberturaDivision[cuenta.id]
+        } else {
+          if (partesConPago(cuenta, ['pagado', 'esperando_pago']).size > 0) {
+            fallar('DIVISION_ACTIVA', 'Ya hay partes cobrándose o pagadas')
+          }
+          quitarCobertura(cuenta)
         }
-        quitarCobertura(cuenta)
+        delete estado.divisionVigente[cuenta.id]
         cuenta.division = null
         recalcular(cuenta)
         return cuenta
@@ -837,9 +887,10 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     crearPago: (token, solicitud) =>
       orden(() => {
-        const actual = requerirSesion()
         const mesa = mesaPorToken(token)
+        const actual = requerirQuienPaga(mesa)
         const cuenta = cuentaAbierta(mesa)
+        vencerCobrosViejos(cuenta)
         const { destino, propinaPorcentaje, comprador, medio } = solicitud ?? {}
         if (!destino || !comprador || !medio) return fallar('CUERPO_INVALIDO')
         if (medio !== 'factus_pay') requerirPersonal(mesa.restauranteId, ['mesero', 'admin'])
@@ -863,9 +914,10 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
           }
           items = [...cantidades].map(([lineaId, cantidad]) => {
             const l = linea(cuenta, lineaId)
-            if (!lineaSuma(l.estado) || cantidad > unidadesPorCubrir(l)) {
-              fallar('CANTIDAD_NO_DISPONIBLE', `${l.nombre} ya está en otro pago`)
+            if (!lineaSuma(l.estado) || cantidad > l.cantidad) {
+              fallar('CANTIDAD_NO_DISPONIBLE', `De ${l.nombre} no hay tantas unidades por pagar`)
             }
+            if (cantidad > unidadesPorCubrir(l)) fallar('PAGO_EN_CURSO', `${l.nombre} ya está en otro pago`)
             return { lineaId, nombre: l.nombre, cantidad, precio: l.precio }
           })
         } else if (destino.tipo === 'parte_igual') {
@@ -927,6 +979,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
           notas: [],
           emitidaEn: null,
         }
+        if (parte !== null) estado.divisionDePago[id] = estado.divisionVigente[cuenta.id] as string
         cubrir(cuenta, items, 1)
         guardarPago(pago)
         if (pago.cobro) dibujarQrDespues('pagos', id, pago.cobro.llaveBreB as string)
@@ -936,7 +989,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     verificarPago: (token, pagoId) =>
       orden(() => {
-        requerirSesion()
+        requerirQuienPaga(mesaPorToken(token))
         const pago = pagoDeMesa(token, pagoId)
         revisarVencimiento(pago)
         return pago
@@ -944,9 +997,10 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     cancelarPago: (token, pagoId) =>
       orden(() => {
-        const actual = requerirSesion()
-        const pago = pagoDeCuenta(cuentaAbierta(mesaPorToken(token)), pagoId)
-        if (pago.creadoPor !== actual.uid && !(esPersonal(actual) && actual.restauranteId === pago.restauranteId)) {
+        const mesa = mesaPorToken(token)
+        const actual = requerirQuienPaga(mesa)
+        const pago = pagoDeCuenta(cuentaAbierta(mesa), pagoId)
+        if (pago.creadoPor !== actual.uid && actual.rol === 'cliente') {
           fallar('SIN_PERMISO', 'Solo quien creó el pago lo puede cancelar')
         }
         if (pago.estado !== 'esperando_pago') fallar('TRANSICION_INVALIDA', 'Ese pago ya no está esperando')
@@ -957,7 +1011,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     // Factura
 
     async descargarFacturaPdf(token, pagoId) {
-      requerirSesion()
+      requerirQuienPaga(mesaPorToken(token))
       const pago = pagoDeMesa(token, pagoId)
       const factura = estado.facturas[pagoId]
       if (!factura || !puedeVerFactura(factura)) return fallar('SIN_PERMISO', 'Solo quien pagó ve su factura')
@@ -974,7 +1028,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     enviarFacturaPorCorreo: (token, pagoId, solicitud) =>
       orden(() => {
-        requerirSesion()
+        requerirQuienPaga(mesaPorToken(token))
         pagoDeMesa(token, pagoId)
         const factura = estado.facturas[pagoId]
         if (!factura || !puedeVerFactura(factura)) return fallar('SIN_PERMISO', 'Solo quien pagó ve su factura')
@@ -1011,6 +1065,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         if (mesa.estado === 'libre' || !mesa.cuentaId) return mesa
         const cuenta = estado.cuentas[mesa.cuentaId]
         if (cuenta) {
+          vencerCobrosViejos(cuenta)
           if (!puedeLiberarMesa(cuenta)) fallar('MESA_CON_SALDO', 'La mesa tiene pedidos por confirmar, cobros activos o saldo')
           cuenta.estado = 'cerrada'
           cuenta.cerradaEn = fecha()
