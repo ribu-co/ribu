@@ -21,8 +21,8 @@ Reporta cada fallo con el caso, el paso, lo que pasó y una captura, sin tokens 
 
 | Si falla... | Reporta a |
 |---|---|
-| Pantallas y mensajes | Néstor |
-| Recaudo, QR, webhook o simulador | Andrés |
+| Pantallas y mensajes | Andrés |
+| Recaudo, QR, webhook o simulador | Néstor |
 | Factura, notas, PDF o correo | Elias |
 | Reglas, permisos, stock, mesas o despliegue | Juan Diego |
 
@@ -114,13 +114,13 @@ Es el flujo que exige el reto.
 ## 6. Pedido nuevo con un QR activo
 
 1. Con una cuenta de $27.000, genera el QR, sin pagarlo.
-2. Pide 1 agua y confírmala.
+2. Pide 1 patacón y confírmalo.
 3. Paga el primer QR y luego lo que falta.
 
 **Esperado:**
 
 - El monto del primer QR no cambia. Sigue siendo por $27.000 más la propina que se haya elegido.
-- `porPagar` muestra solo los $4.050 nuevos.
+- `porPagar` muestra solo los $10.800 nuevos.
 - Lo nuevo va en otro pago, con otra referencia.
 - Al final hay 2 recaudos y 2 facturas, y nada queda cobrado dos veces.
 
@@ -138,20 +138,21 @@ Es el flujo que exige el reto.
 - Cambiar la división responde `DIVISION_ACTIVA`.
 - Hay 3 referencias, 3 recaudos y 3 facturas, y las partes suman $91.800.
 
-**Variantes con 1 agua de $4.050:**
+**Variantes con una cuenta de $27.000:**
 
-- En 4 partes, debe dar $1.013, $1.013, $1.012 y $1.012.
-- En 5 partes, cada una sería de $810, menos del mínimo de $1.000. Debe responder `MONTO_FUERA_DE_RANGO`.
+- En 2 partes, debe dar $13.500 cada una.
+- En 3 partes, cada una sería de $9.000, menos del mínimo de $10.000. Debe responder `MONTO_FUERA_DE_RANGO`.
 
 ## 8. Dividir por productos
 
-1. Con 2 jugos y 1 patacón confirmados, un celular paga 1 jugo y el patacón.
-2. El otro trata de pagar 2 jugos. Después paga 1.
+1. Con 2 limonadas de coco y 1 patacón confirmados, un celular paga 1 limonada y el patacón.
+2. El otro trata de pagar 2 limonadas. Después paga 1.
 
 **Esperado:**
 
-- El primer pago es de $18.900 antes de propina.
-- Pedir 2 jugos responde `CANTIDAD_NO_DISPONIBLE`.
+- El primer pago es de $22.800 antes de propina.
+- Pedir 2 limonadas responde `CANTIDAD_NO_DISPONIBLE`.
+- El segundo pago es de $12.000 antes de propina.
 - Cada factura lleva solo lo que cubrió su pago.
 
 ## 9. Efectivo y tarjeta
@@ -166,7 +167,7 @@ Es el flujo que exige el reto.
 - El pago queda `pagado`, sin QR ni recaudo.
 - Se emite la factura, con su medio de pago correcto en Factus.
 
-Falta confirmar los códigos de efectivo y tarjeta: ver `docs/explicacion-integracion.md`.
+Los códigos de medio de pago existen en las tablas de Factus: `10` efectivo, `49` débito y `48` crédito. Falta probarlos.
 
 ## 10. Factura rechazada
 
@@ -202,7 +203,7 @@ Falta confirmar los códigos de efectivo y tarjeta: ver `docs/explicacion-integr
 
 ## 12. Nota débito
 
-1. Con el admin, crea una nota débito con `factus_pay`, por $5.400.
+1. Con el admin, crea una nota débito con `factus_pay`, por $10.800.
 2. Paga el cobro con el simulador.
 3. Crea otra con efectivo.
 
@@ -210,7 +211,7 @@ Falta confirmar los códigos de efectivo y tarjeta: ver `docs/explicacion-integr
 
 - Con `factus_pay`, la nota no se emite hasta que entra el pago. El cobro usa el id de la nota como referencia.
 - Con efectivo, se emite de una vez.
-- Una nota débito por menos de $1.000 con `factus_pay` responde `MONTO_FUERA_DE_RANGO`.
+- Una nota débito por menos de $10.000 con `factus_pay` responde `MONTO_FUERA_DE_RANGO`.
 - La nota débito emitida aumenta lo que se puede acreditar de esa factura.
 
 ## 13. Liberar la mesa
@@ -229,7 +230,7 @@ Falta confirmar los códigos de efectivo y tarjeta: ver `docs/explicacion-integr
 ## Si hay tiempo
 
 - **Redondeo:** paga 1 limonada de coco y 3 limonadas por separado. El total en Factus debe dar $12.000 y $36.000. Antes de hacerlo, avisa a Elias.
-- **QR vencido:** espera los 600 segundos. El pago queda `vencido` y lo que cubría queda libre.
+- **QR vencido:** espera los 600 segundos. Factus Pay sigue mostrando `ready`, pero Ribu mira `qr_expires_at`: el pago queda `vencido` y lo que cubría queda libre.
 - **Celular:** repite el caso 4 en iPhone y en Android, con pantalla pequeña.
 
 ## Recorridos adicionales del MVP
