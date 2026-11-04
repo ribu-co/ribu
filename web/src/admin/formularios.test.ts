@@ -113,7 +113,7 @@ describe('personal', () => {
     const fuente = {
       prefijo: 'r:',
       escucharPersonal: () => () => {},
-      crearPersonal(restauranteId: string) {
+      crearPersonal(this: { prefijo: string }, restauranteId: string) {
         return Promise.resolve({ restauranteId: this.prefijo + restauranteId })
       },
       actualizarPersonal: async () => ({}),
