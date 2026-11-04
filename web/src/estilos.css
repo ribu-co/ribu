@@ -2379,3 +2379,45 @@ code.llave {
 .medidor__raya {
   stroke: var(--borde-fuerte);
 }
+
+/* Créditos de las fotos */
+
+.creditos {
+  display: grid;
+  gap: 10px;
+}
+
+.credito {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.credito img {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radio-s);
+  background: var(--superficie-2);
+}
+
+.credito div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.credito strong {
+  font-size: 1rem;
+}
+
+.credito span {
+  color: var(--tinta-2);
+}
+
+.credito a {
+  color: var(--tinta);
+  overflow-wrap: anywhere;
+}
