@@ -1,53 +1,57 @@
-# Guion del video
+# Guion del video · Ribu funcionando en dos minutos
 
-Duración prevista: unos 2:35 según la pauta; falta cronometrarla. El reto pide de 2 a 3 minutos. Es una grabación de la pantalla con el flujo completo: **recaudo en Factus Pay y emisión en Factus**.
+**Duración objetivo: 2:00.** Es la demostración que se inserta entre 0:25 y 2:25 del pitch total de cinco minutos. Cumple el rango del reto de 2 a 3 minutos y deja tiempo para que los cinco integrantes expliquen sus módulos después. El reparto completo está en `pitch/guion.md`.
 
-**Estado: sin grabar.** Se graba cuando el flujo funcione en la web desplegada, nunca contra mocks. Las dos APIs deben seguir en sandbox: está prohibido mover dinero real. Si la demo no muestra las dos APIs de verdad, el equipo queda descalificado.
+**Estado: sin grabar.** Solo se graba cuando la app desplegada complete el recorrido con las dos APIs reales de sandbox. Ninguna prueba de este documento mueve dinero real. No se graba contra mocks ni se presenta como terminado por tener un guion.
 
-## Antes de grabar
+## Preparación
 
-- [ ] La app está desplegada y el caso 4 de `docs/casos-de-prueba.md` pasó en la web desplegada, con Factus Pay y Factus v2 en sandbox.
-- [ ] El stock de la demo está cargado de nuevo y la mesa 3 está libre.
-- [ ] No hay datos personales, tokens, `.env` ni consolas con credenciales en la pantalla.
-- [ ] Las notificaciones están apagadas.
-- [ ] Están abiertos el celular de la mesa (espejado o en modo móvil), el mesero, el simulador, el panel de Factus Pay y la factura.
-- [ ] Se grabó un ensayo y se comprobó que el audio se entiende.
+- Juan Diego entrega URL desplegada, commit y sesiones de prueba por privado. Los recorridos de pedido y pago deben pasar antes de grabar.
+- Cargar el restaurante ficticio de `docs/datos-demo.md`: mesa 3, dos mojarras, dos jugos de corozo y un patacón; stock de mojarra en 2.
+- El consumo es $91.800, con base $85.000 e INC $6.800. Para este ejemplo se elige voluntariamente 10 % de propina sobre la base según la regla actual del proyecto: $8.500; total del recaudo $100.300. La base de propina sigue pendiente de revisión contable.
+- Tener abiertas las vistas del cliente, mesero y cocina, y el simulador en otro dispositivo con cámara. Mostrar el QR del recaudo en una pantalla para escanearlo desde el simulador.
+- Preparar vistas reales sanitizadas o el panel para mostrar solicitudes/respuestas de las APIs y las referencias. No mostrar `.env`, tokens, encabezados Authorization, la llave secreta del webhook ni datos de terceros del sandbox compartido.
+- Usar un rótulo visible «APIs sandbox · sin dinero real». El enlace de mesa se abre directamente; usar una toma NFC solo si existe y se probó.
 
-El simulador escanea el QR con la cámara. Muestra el QR en una pantalla y graba el simulador en otro dispositivo.
+## Secuencia de grabación
 
-## Guion
+Los tiempos son del video, no del pitch. Las acciones y esperas ocurren dentro de cada tramo. El equipo retoma la voz al terminar los dos minutos, sin narración en vivo superpuesta.
 
-| Tiempo | Qué se ve | Qué se dice |
+| Tiempo del video | Evidencia que se ve | Voz grabada |
 |---|---|---|
-| 0:00–0:15 | Título con el nombre del equipo | Ribu conecta el pedido, el cobro y la factura de un restaurante en un solo flujo. La mesa cobra y factura sola. Esta es la web desplegada; Factus Pay y Factus v2 funcionan en sandbox, sin dinero real. |
-| 0:15–0:35 | Se abre el link de la mesa 3 y se pide | Cada mesa tiene un sticker con un link. El cliente entra sin registrarse y pide 2 mojarras, 2 jugos y 1 patacón. |
-| 0:35–0:55 | El mesero confirma. La mojarra aparece agotada y la cocina recibe el pedido | El mesero confirma, y solo lo confirmado se puede pagar. La mojarra se agotó, y la cocina ya tiene el pedido. |
-| 0:55–1:15 | Se elige toda la cuenta, 10 % de propina y consumidor final | Quien paga elige la propina y el comprador antes de generar el cobro, porque el recaudo es por el monto exacto: 100.300 pesos. |
-| 1:15–1:35 | QR, llave Bre-B y referencia | Ribu crea el recaudo en Factus Pay. Este es el QR, esta es la llave y esta es la referencia: es el id del pago. |
-| 1:35–1:55 | Se escanea y se confirma en el simulador. El celular cambia solo | Confirmo el pago en el simulador de Factus Pay. Ribu verifica el estado con la API antes de seguir. |
-| 1:55–2:15 | La factura: número, CUFE, QR y PDF abierto | Sin digitar nada, se emite la factura electrónica en Factus: número, CUFE, QR y PDF. |
-| 2:15–2:25 | La misma referencia en el panel de Factus Pay y en la factura | Esta es la asociación: la misma referencia está en el recaudo y en la factura. |
-| 2:25–2:35 | Logo y URL de la app | Eso es Ribu: pedido, cobro y factura, en un solo flujo. |
+| 0:00–0:10 | Web desplegada y enlace de la mesa 3. Rótulo permanente: APIs sandbox · sin dinero real. | Ribu conecta pedido, pago y factura desde la mesa. Esta corrida usa datos ficticios y las APIs sandbox. |
+| 0:10–0:30 | Cliente pide 2 mojarras, 2 jugos y 1 patacón. Mesero confirma en otra sesión. | El cliente pide y el mesero confirma. Solo el consumo confirmado entra al cobro. |
+| 0:30–0:40 | Cocina recibe el pedido y mojarra queda agotada por stock 0. | La cocina recibe lo aprobado. Las dos mojarras disponibles se agotan. |
+| 0:40–0:55 | Comprador ficticio y propina voluntaria. Mostrar consumo $91.800 y total $100.300. | El consumo incluye impuesto. Elegimos comprador y propina antes de generar el cobro por el monto exacto. |
+| 0:55–1:15 | Recaudo de Factus Pay: referencia, amount 100300, QR y llave Bre-B. Mostrar POST /v1/collections en una captura real sanitizada o panel. | Factus Pay recibe referencia, monto y vencimiento. Su respuesta entrega el QR y la llave Bre-B de este recaudo. |
+| 1:15–1:35 | Simulador escanea desde otro dispositivo; luego GET del mismo recaudo muestra paid y el monto coincide. | Confirmamos con el simulador. Ribu consulta a Factus Pay y comprueba el pago antes de facturar. |
+| 1:35–1:55 | POST /v2/bills/validate de la misma corrida; is_validated true, número, CUFE, QR y PDF abierto. | Factus v2 valida la factura con los productos, impuestos y datos del comprador. Esta es su respuesta y este es el PDF. |
+| 1:55–2:00 | Congelar una comparación legible: Pago.id = reference_code de Factus Pay = reference_code de Factus. | La misma referencia conecta el dinero y su factura. |
 
-## Reglas de la grabación
+La última comparación de referencias debe quedar preparada y legible: es la imagen que el jurado recordará mientras Néstor, Elias y Juan Diego explican cómo usaron las APIs. No inventar una referencia ni reemplazarla por un ejemplo que parezca una respuesta real.
 
-- Muestra los valores reales de esa corrida. Si el número o el monto cambian, ajusta la frase.
-- No cortes el momento entre el pago y la factura, porque es lo que el jurado quiere ver. Si la factura tarda, muestra el estado `en_proceso` o acelera el tramo y dilo en pantalla.
-- Si algo del guion no funciona, quítalo. No lo simules ni lo dibujes.
-- Solo si funciona y cabe en los 3 minutos, agrega 15 segundos de una cuenta dividida o de una nota crédito.
+## Edición honesta y límite de tiempo
 
-## Después de grabar
+Conservar una toma original del recorrido completo. Las inserciones del segundo dispositivo y del panel deben corresponder al mismo recaudo, importe y factura. Si una espera real impide llegar a dos minutos, puede acelerarse con un rótulo «espera acelerada»; se conserva el original y no se presenta la respuesta como instantánea.
 
-- [ ] Dura de 2 a 3 minutos.
-- [ ] Se ven el recaudo en Factus Pay y la factura en Factus.
-- [ ] Se revisó cuadro por cuadro que no aparezca ningún token, llave ni dato personal.
-- [ ] Se subió a la plataforma del evento, con el enlace probado desde otra cuenta.
-- [ ] Eddy revisó el texto y puede defenderlo.
+No reemplazar la llamada a una API con una tarjeta dibujada ni con una factura de otro pago. Si hay un fallo, corregir y repetir la corrida antes de grabar. Pago confirmado y emisión validada son las dos evidencias obligatorias; no se recortan para que entre un título o una función adicional.
 
-## Registro de la toma y revisión
+Los turnos posteriores del equipo explican endpoints, campos, control de estados y reintentos. Por eso el video muestra la operación y evita una introducción comercial larga. Las cuentas divididas, notas y comparaciones de costos quedan para las preguntas, salvo que el jurado pida verlas y el formato permita tiempo adicional.
 
-Pendientes: URL pública del MVP, commit desplegado, fecha, referencia del recaudo, número de factura, ubicación de la toma original, duración final y enlace del video. No hay grabación terminada ni revisión de Eddy realizada.
+No mostrar correo enviado si el sandbox no lo permite. No usar testimonios, ahorro medido, ni compatibilidad NFC universal sin evidencia. El video demuestra esta corrida y los dispositivos usados.
 
-Guardar una toma original del flujo completo. Las inserciones del simulador deben corresponder al mismo recaudo, importe y factura; no sustituir un documento de otro pago. En la comparación final se deben ver `Pago.id`, `reference_code` de Factus Pay y `reference_code` de Factus iguales, usando una vista sanitizada sin encabezados de autenticación ni llave del webhook.
+## Registro de entrega
 
-Si no se ha probado NFC, abrir el enlace en pantalla y decirlo así. No mostrar correo enviado si sandbox no lo permite. El ahorro de tiempo es una hipótesis; no usar cifras ni testimonios sin evidencia y permiso específico para video. Eddy debe revisar el texto y la toma final antes de darla por entregada.
+| Campo | Estado |
+|---|---|
+| URL pública y commit desplegado | Pendiente |
+| Fecha y referencia del recaudo | Pendiente |
+| Número de factura y CUFE de la misma corrida | Pendiente |
+| Ubicación de la toma original | Pendiente |
+| Duración del archivo final | Pendiente; objetivo 2:00 |
+| Enlace del video y acceso comprobado | Pendiente |
+| Revisión de Eddy y ensayo con los cinco integrantes | Pendiente |
+
+Antes de marcarlo terminado: abrir el archivo final, comprobar duración de al menos dos minutos y dentro del rango de 2 a 3, verificar que se leen monto y referencias, que se ve `paid`, que la factura está validada y que el PDF pertenece al mismo caso. Medir también su reproducción dentro del pitch completo: objetivo 4:45, límite 5:00.
+
+Fuentes: estructura acordada por el usuario, `AGENTS.md`, `contratos/README.md`, `docs/datos-demo.md`, `docs/explicacion-integracion.md` y [simulador oficial de Factus Pay](https://pay-developers.factus.com.co/sandbox/simulator/).
