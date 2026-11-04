@@ -25,7 +25,7 @@ La vitrina vive en Firestore y la mesa oculta lo que venga en `null`. Si el rest
 
 Son 5, con `numero` del 1 al 5, `estado: 'libre'` y `cuentaId: null`.
 
-El `token` no se escribe aquí porque este repositorio es público y el token no se debe poder adivinar. Lo genera el script.
+Los tokens los genera la semilla, son aleatorios y no cambian al sembrar otra vez. El README publica el enlace de una mesa de ejemplo para el jurado.
 
 La semilla no cambia los tokens si se corre otra vez, porque si cambian, los stickers NFC y los QR ya impresos dejan de funcionar. Su respuesta trae el link de cada mesa, que Producto necesita para hacer `docs/pruebas-fisicas.md`.
 
