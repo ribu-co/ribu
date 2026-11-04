@@ -8,7 +8,10 @@ export interface PersonaPersonal {
   clave: string
   rol: Exclude<Rol, 'cliente'>
   nombre: string
-  restauranteId: string
+  /** null solo para la plataforma, que no es de ningún restaurante. */
+  restauranteId: string | null
+  activo: boolean
+  creadoEn: string
 }
 
 export interface Semilla {
@@ -87,12 +90,14 @@ export const semillaDemo = (): Semilla => ({
     estado: 'libre',
     cuentaId: null,
   })),
-  personal: (['mesero', 'cocina', 'admin'] as const).map((rol) => ({
+  personal: (['mesero', 'cocina', 'admin', 'plataforma'] as const).map((rol) => ({
     uid: `personal-${rol}`,
     correo: `${rol}@ribu.demo`,
     clave: CLAVE_DEMO,
     rol,
-    nombre: { mesero: 'Marta (mesera)', cocina: 'Cocina', admin: 'Administración' }[rol],
-    restauranteId: RESTAURANTE,
+    nombre: { mesero: 'Marta (mesera)', cocina: 'Cocina', admin: 'Administración', plataforma: 'Plataforma Ribu' }[rol],
+    restauranteId: rol === 'plataforma' ? null : RESTAURANTE,
+    activo: true,
+    creadoEn: '2026-11-04T12:00:00.000Z',
   })),
 })

@@ -1,13 +1,11 @@
-import { usarFuente } from './datos/contexto'
-import { navegar } from './ruta'
-import { Boton } from './ui/Controles'
+import { lazy, Suspense } from 'react'
 import { Icono } from './ui/Icono'
 
-/** En producción cada mesa llega por su sticker. Esta página solo sirve para recorrer la demo. */
-export function Inicio() {
-  const { simulador } = usarFuente()
-  const mesas = simulador?.mesasDemo() ?? []
+// Vite reemplaza PROD al compilar: la build de producción no incluye las mesas de la demo.
+const MesasDemo = import.meta.env.PROD ? null : lazy(() => import('./MesasDemo').then((m) => ({ default: m.MesasDemo })))
 
+/** En producción cada mesa llega por su sticker. Esta es solo la portada de Ribu. */
+export function Inicio() {
   return (
     <main className="pagina pagina--inicio">
       <header className="cabecera">
@@ -27,35 +25,14 @@ export function Inicio() {
         </p>
       </section>
 
-      {simulador && (
-        <>
-          <h2 className="seccion-titulo">Mesas de la demo</h2>
-          <ul className="rejilla-mesas">
-            {mesas.map((mesa, i) => (
-              <li key={mesa.token} className="entra" style={{ animationDelay: `${i * 40}ms` }}>
-                <button className="tarjeta tarjeta--boton mesa-enlace" onClick={() => navegar(`/m/${mesa.token}`)}>
-                  <span className="mesa-enlace__numero">{mesa.numero}</span>
-                  <span>Mesa</span>
-                  <span className="icono-circulo">
-                    <Icono nombre="flecha" tamano={16} />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="ayuda">
-            Los datos viven en este navegador. Abre el personal en otra pestaña para ver los cambios al instante.
-          </p>
-          <Boton
-            variante="fantasma"
-            onClick={() => {
-              simulador.reiniciar()
-              location.reload()
-            }}
-          >
-            <Icono nombre="actualizar" tamano={16} /> Reiniciar la demo
-          </Boton>
-        </>
+      <a className="boton boton--secundario inicio__personal" href="/personal">
+        <Icono nombre="persona" tamano={18} /> Soy del restaurante
+      </a>
+
+      {MesasDemo && (
+        <Suspense fallback={null}>
+          <MesasDemo />
+        </Suspense>
       )}
     </main>
   )

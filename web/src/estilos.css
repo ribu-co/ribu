@@ -112,6 +112,11 @@ ul {
 }
 
 .pagina--mesa,
+.inicio__personal {
+  margin-top: 16px;
+  width: 100%;
+}
+
 .pagina--inicio {
   max-width: var(--ancho-mesa);
 }
