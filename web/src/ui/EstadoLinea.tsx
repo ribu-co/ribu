@@ -14,7 +14,7 @@ const TONO: Record<EstadoLinea, string> = {
 
 export function ChipLinea({ estado }: { estado: EstadoLinea }) {
   return (
-    <Chip tono={TONO[estado]} rayado={estado === 'pendiente'}>
+    <Chip key={estado} tono={TONO[estado]} rayado={estado === 'pendiente'}>
       {ETIQUETA_LINEA[estado]}
     </Chip>
   )

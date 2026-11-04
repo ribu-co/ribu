@@ -29,16 +29,16 @@ export function Medidor({ consumo, pagado, enCobro }: { consumo: number; pagado:
       <svg viewBox="0 0 200 112" role="img" aria-label={`${porcentaje} % pagado`}>
         <defs>
           <pattern id="rayas" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="7" height="7" fill="#f5f6f3" />
-            <line x1="0" y1="0" x2="0" y2="7" stroke="#b9c1bb" strokeWidth="2.4" />
+            <rect width="7" height="7" className="medidor__raya-fondo" />
+            <line x1="0" y1="0" x2="0" y2="7" className="medidor__raya" strokeWidth="2.4" />
           </pattern>
         </defs>
         <path d={arco} className="medidor__fondo" stroke="url(#rayas)" />
-        <path d={arco} className="medidor__cobro" strokeDasharray={`${parte(pagado + enCobro)} ${largo}`} />
-        <path d={arco} className="medidor__pagado" strokeDasharray={`${parte(pagado)} ${largo}`} />
+        <path key={`cobro-${pagado + enCobro}`} d={arco} className="medidor__cobro" strokeDasharray={`${parte(pagado + enCobro)} ${largo}`} />
+        <path key={`pagado-${pagado}`} d={arco} className="medidor__pagado" strokeDasharray={`${parte(pagado)} ${largo}`} />
       </svg>
       <div className="medidor__centro">
-        <strong>{porcentaje} %</strong>
+        <strong key={porcentaje}>{porcentaje} %</strong>
         <span>pagado</span>
       </div>
       <ul className="medidor__leyenda">

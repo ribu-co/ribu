@@ -110,6 +110,9 @@ function Marco({ children }: { children: ReactNode }) {
   return <main className="pagina pagina--mesa">{children}</main>
 }
 
+/** Solo se enlaza lo que es una dirección web: el dato viene de Firestore. */
+const enlaceSeguro = (url: string | null | undefined) => (url?.startsWith('https://') ? url : null)
+
 export type PestanaMesa = 'carta' | 'pedido' | 'cuenta'
 
 export function VistaMesa({
@@ -166,6 +169,9 @@ export function VistaMesa({
   const lineasActivas = cuenta?.lineas.filter((l) => l.estado !== 'rechazada' && l.estado !== 'anulada') ?? []
   const resumen = resumenLineas(cuenta?.lineas ?? [])
   const cuantos = unidades(borrador)
+  const vitrina = restaurante.vitrina ?? null
+  const instagram = enlaceSeguro(vitrina?.instagramUrl)
+  const mapa = enlaceSeguro(vitrina?.mapaUrl)
 
   async function enviar() {
     const { borrador: limpio, quitados } = quitarNoDisponibles(borrador, productos)
@@ -194,32 +200,40 @@ export function VistaMesa({
 
   return (
     <main className="pagina pagina--mesa">
-      <header className="cabecera">
-        <div className="marca">
-          <span className="marca__logo" aria-hidden="true">
-            <span />
+      <section className="banner">
+        <div className="banner__marca">
+          <span className="banner__logo">
+            {vitrina?.fotoUrl ? <img src={vitrina.fotoUrl} alt="" /> : <span aria-hidden="true" />}
           </span>
-          <span className="marca__nombre">{restaurante.nombre}</span>
+          <h1 className="banner__nombre">{restaurante.nombre}</h1>
         </div>
-        <span className="pastilla">Mesa {mesa.numero}</span>
-      </header>
-
-      <section className="hero">
-        <p className="hero__etiqueta">{esPersonal ? `Pidiendo como ${sesion.nombre ?? 'personal'}` : `Mesa ${mesa.numero}`}</p>
-        <h1 className="hero__titulo">
-          {esPersonal ? 'Lo que pidas va directo a cocina' : lineasActivas.length ? 'Tu pedido va en camino' : '¿Qué se te antoja hoy?'}
-        </h1>
-        {resumen.length > 0 ? (
-          <button className="hero__resumen" onClick={() => setPestana('pedido')}>
-            <span>{resumen.join(' · ')}</span>
-            <span className="icono-circulo">
-              <Icono nombre="flecha" tamano={16} />
-            </span>
-          </button>
-        ) : (
-          <p className="hero__texto">Pide desde aquí. El mesero confirma y la cocina empieza.</p>
-        )}
+        <div className="banner__pie">
+          {instagram && (
+            <a className="banner__icono" href={instagram} target="_blank" rel="noreferrer" aria-label="Instagram">
+              <Icono nombre="instagram" tamano={18} />
+            </a>
+          )}
+          {mapa && (
+            <a className="banner__icono" href={mapa} target="_blank" rel="noreferrer" aria-label={vitrina?.ubicacion ? `Ubicación en ${vitrina.ubicacion}` : 'Ubicación'}>
+              <Icono nombre="ubicacion" tamano={18} />
+            </a>
+          )}
+          <span className="banner__mesa">Mesa {mesa.numero}</span>
+        </div>
       </section>
+
+      {esPersonal && (
+        <p className="nota-mesa">
+          <span>Pidiendo como {sesion.nombre ?? 'personal'}</span>
+          Lo que pidas va directo a cocina
+        </p>
+      )}
+      {resumen.length > 0 && (
+        <button className="nota-mesa nota-mesa--boton" onClick={() => setPestana('pedido')}>
+          <span>Tu pedido va en camino</span>
+          {resumen.join(' · ')}
+        </button>
+      )}
 
       <div className="barra-pestanas">
         <Pestanas
@@ -265,7 +279,7 @@ export function VistaMesa({
 
       <div className="barra-flotante" data-visible={cuantos > 0 && pestana !== 'cuenta'} inert={cuantos === 0 || pestana === 'cuenta'}>
         <Boton ancho className="boton--barra" onClick={() => setVerBorrador(true)}>
-          <span className="burbuja">{cuantos}</span>
+          <span className="burbuja" key={cuantos}>{cuantos}</span>
           <span>Ver {plural(cuantos, 'producto')}</span>
           <strong>{pesos(totalEstimado(borrador, productos))}</strong>
         </Boton>

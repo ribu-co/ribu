@@ -1,4 +1,4 @@
-// Datos inventados para la versión en memoria. Son los de docs/datos-demo.md: nada es real.
+// Solo para desarrollo, en la versión en memoria: misma forma que flujo/semilla.ts. El restaurante es inventado; las fotos son de Wikimedia Commons.
 
 import type { Mesa, Producto, Restaurante, Rol } from '../../../contratos/tipos'
 
@@ -39,7 +39,7 @@ const producto = (
   precio,
   stock,
   disponible: true,
-  imagenUrl: null,
+  imagenUrl: `/platos/${id}.jpg`,
 })
 
 /** Solo sirve en memoria. En Firebase el personal entra con su cuenta y la clave no vive en el repo. */
@@ -53,6 +53,12 @@ export const semillaDemo = (): Semilla => ({
       activo: true,
       impuesto: { tipo: 'INC', porcentaje: 8 },
       propinasSugeridas: [0, 5, 8, 10],
+      vitrina: {
+        fotoUrl: '/restaurantes/fogon-del-manglar.jpg',
+        ubicacion: 'Montería',
+        mapaUrl: 'https://www.google.com/maps/search/?api=1&query=Monter%C3%ADa%2C%20C%C3%B3rdoba',
+        instagramUrl: 'https://instagram.com/fogondelmanglar',
+      },
     },
   ],
   productos: [

@@ -18,6 +18,12 @@ const RESTAURANTE: Restaurante = {
   impuesto: { tipo: 'INC', porcentaje: 8 },
   propinasSugeridas: [0, 5, 8, 10],
   activo: true,
+  vitrina: {
+    fotoUrl: '/restaurantes/fogon-del-manglar.jpg',
+    ubicacion: 'Montería',
+    mapaUrl: 'https://www.google.com/maps/search/?api=1&query=Monter%C3%ADa%2C%20C%C3%B3rdoba',
+    instagramUrl: 'https://instagram.com/fogondelmanglar',
+  },
 }
 
 type FilaCarta = [id: string, nombre: string, categoria: string, precio: number, stock: number, descripcion: string]
@@ -102,9 +108,10 @@ export async function sembrar(ctx: Contexto, solicitud: SolicitudSemilla, origen
 
   const mesas = await ctx.db.transaccion(async (tx) => {
     const ahora = iso(ctx.ahora())
-    if (!(await tx.leer<Restaurante>(rutaRestaurante(RESTAURANTE_DEMO)))) {
-      tx.guardar(rutaRestaurante(RESTAURANTE_DEMO), RESTAURANTE)
-    }
+    const restaurante = await tx.leer<Restaurante>(rutaRestaurante(RESTAURANTE_DEMO))
+    if (!restaurante) tx.guardar(rutaRestaurante(RESTAURANTE_DEMO), RESTAURANTE)
+    // Lo sembrado antes de que existiera la vitrina. Si ya tiene una, aunque sea null, no se toca.
+    else if (restaurante.vitrina === undefined) tx.actualizar(rutaRestaurante(RESTAURANTE_DEMO), { vitrina: RESTAURANTE.vitrina })
 
     for (const { uid, rol, correo } of cuentas) {
       if (rol === 'plataforma') continue

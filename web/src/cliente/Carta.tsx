@@ -97,7 +97,7 @@ export function Carta({
             {deCategoria.map((producto, i) => {
               const cuantos = enBorrador(producto.id)
               return (
-                <li key={producto.id} className="entra" style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}>
+                <li key={producto.id} className="entra" style={{ animationDelay: `${Math.min(i, 5) * 30}ms` }}>
                   <button
                     className="producto"
                     disabled={!producto.disponible}
@@ -116,7 +116,7 @@ export function Carta({
                         <span>{iniciales(producto.nombre)}</span>
                       )}
                       {producto.disponible && (
-                        <span className="producto__mas" data-cuantos={cuantos || undefined}>
+                        <span className="producto__mas" key={cuantos} data-cuantos={cuantos || undefined}>
                           {cuantos > 0 ? cuantos : <Icono nombre="mas" tamano={18} grosor={2.4} />}
                         </span>
                       )}

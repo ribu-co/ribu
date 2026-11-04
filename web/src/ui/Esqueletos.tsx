@@ -110,17 +110,16 @@ export function EsqueletoRonda({ lineas = 2 }: { lineas?: number }) {
 export function EsqueletoMesa() {
   return (
     <main className="pagina pagina--mesa" aria-busy="true">
-      <header className="cabecera">
-        <div className="marca">
-          <Hueso className="marca__logo" />
-          <Texto className="marca__nombre">Fogón del Manglar</Texto>
+      <section className="banner">
+        <div className="banner__marca">
+          <Hueso className="banner__logo" />
+          <Hueso className="banner__nombre">Fogón del Manglar</Hueso>
         </div>
-        <Hueso className="pastilla">Mesa 00</Hueso>
-      </header>
-      <section className="hero hero--esqueleto">
-        <Texto className="hero__etiqueta">Mesa 3</Texto>
-        <Texto className="hero__titulo">¿Qué se te antoja hoy?</Texto>
-        <Texto className="hero__texto">Pide desde aquí. El mesero confirma y la cocina empieza.</Texto>
+        <div className="banner__pie">
+          <Hueso className="banner__icono" />
+          <Hueso className="banner__icono" />
+          <Hueso className="banner__mesa">Mesa 00</Hueso>
+        </div>
       </section>
       <div className="barra-pestanas">
         <div className="pestanas" style={{ ['--n' as string]: 2 }}>

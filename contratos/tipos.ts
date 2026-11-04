@@ -24,6 +24,14 @@ export interface Impuesto {
   porcentaje: number
 }
 
+/** Lo que el restaurante muestra de sí mismo en la mesa. Lo que venga en null no se muestra. */
+export interface Vitrina {
+  fotoUrl: string | null
+  ubicacion: string | null
+  mapaUrl: string | null
+  instagramUrl: string | null
+}
+
 export interface Restaurante {
   id: string
   nombre: string
@@ -33,6 +41,7 @@ export interface Restaurante {
   propinasSugeridas: number[]
   /** Un restaurante inactivo no recibe pedidos ni pagos, pero conserva su historia. */
   activo: boolean
+  vitrina?: Vitrina | null
 }
 
 export interface NuevoRestaurante {

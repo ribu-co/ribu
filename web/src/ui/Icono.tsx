@@ -24,6 +24,8 @@ const TRAZOS = {
   tienda: 'M4 10h16l-1-5H5l-1 5ZM5 10v10h14V10M9 20v-5h6v5',
   caja: 'M3 7h18v13H3zM3 11h18M8 4h8v3',
   actualizar: 'M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6',
+  instagram: 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Zm5 13.2a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4ZM17.4 6.6h.01',
+  ubicacion: 'M12 21s-6.5-6.4-6.5-11a6.5 6.5 0 0 1 13 0c0 4.6-6.5 11-6.5 11Zm0-8.2a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z',
 } as const
 
 export type NombreIcono = keyof typeof TRAZOS
