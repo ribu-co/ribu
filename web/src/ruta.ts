@@ -23,7 +23,8 @@ function suscribir(aviso: () => void) {
 export const usarRuta = () =>
   useSyncExternalStore(
     suscribir,
-    () => location.pathname,
+    // `/mesero/` y `/mesero` son la misma página.
+    () => location.pathname.replace(/\/+$/, '') || '/',
     () => '/',
   )
 
