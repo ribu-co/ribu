@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Producto } from '../../../contratos/tipos'
+import { encuadreFoto } from '../datos/semilla'
 import { Boton, Contador } from '../ui/Controles'
 import { pesos } from '../ui/formato'
 import { Hoja } from '../ui/Hoja'
@@ -34,7 +35,7 @@ export function HojaProducto({
       abierta={producto !== null}
       alCerrar={alCerrar}
       titulo={mostrado?.nombre ?? ''}
-      subtitulo={mostrado ? pesos(mostrado.precio) : undefined}
+      subtitulo={mostrado ? <span className="precio-llamado">{pesos(mostrado.precio)}</span> : undefined}
       pie={
         mostrado && (
           <Boton ancho onClick={() => alAgregar(mostrado, cantidad, nota)}>
@@ -43,6 +44,14 @@ export function HojaProducto({
         )
       }
     >
+      {mostrado?.imagenUrl && (
+        <img
+          className="hoja__foto"
+          src={mostrado.imagenUrl}
+          alt=""
+          style={{ objectPosition: encuadreFoto(mostrado.id) }}
+        />
+      )}
       {mostrado?.descripcion && <p className="hoja__texto">{mostrado.descripcion}</p>}
       <div className="campo campo--fila">
         <span className="campo__etiqueta">Cantidad</span>
