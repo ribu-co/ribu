@@ -38,6 +38,7 @@ import {
   MEDIOS_PAGO,
   ORIGENES_LINEA,
   ROLES,
+  ROLES_PERSONAL,
   TIPOS_DOCUMENTO,
   TIPOS_IMPUESTO,
   TIPOS_NOTA,
@@ -188,6 +189,7 @@ test('las rutas de Firestore cuelgan del restaurante', () => {
   expect(rutas.paginaMesa('abc')).toBe('/m/abc')
   expect(rutas.facturas('r-1')).toBe('restaurantes/r-1/facturas')
   expect(rutas.notas('r-1')).toBe('restaurantes/r-1/notas')
+  expect(rutas.personal('r-1')).toBe('restaurantes/r-1/personal')
 })
 
 test('los límites de cobro son los que acepta el sandbox de Factus Pay', () => {
@@ -248,6 +250,7 @@ test.each(
     ConceptoNotaCredito: CONCEPTOS_NOTA_CREDITO,
     ConceptoNotaDebito: CONCEPTOS_NOTA_DEBITO,
     EstadoDevolucion: ESTADOS_DEVOLUCION,
+    RolPersonal: ROLES_PERSONAL,
     CodigoError: CODIGOS_ERROR,
   }),
 )('%s es igual en openapi.yaml y en tipos.ts', (esquema, valores) => {
