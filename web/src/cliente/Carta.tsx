@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Producto } from '../../../contratos/tipos'
-import { encuadreFoto } from '../datos/semilla'
 import { Vacio } from '../ui/Estados'
 import { pesos } from '../ui/formato'
 import { Icono } from '../ui/Icono'
@@ -112,7 +111,7 @@ export function Carta({
                     </span>
                     <span className="producto__foto" data-agotado={!producto.disponible}>
                       {producto.imagenUrl ? (
-                        <img src={producto.imagenUrl} alt="" loading="lazy" style={{ objectPosition: encuadreFoto(producto.id) }} />
+                        <img src={producto.imagenUrl} alt="" loading="lazy" />
                       ) : (
                         <span>{iniciales(producto.nombre)}</span>
                       )}

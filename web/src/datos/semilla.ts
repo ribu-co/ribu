@@ -30,7 +30,6 @@ const producto = (
   precio: number,
   stock: number | null,
   descripcion: string,
-  imagen: string,
 ): Producto => ({
   id,
   restauranteId: RESTAURANTE,
@@ -40,21 +39,8 @@ const producto = (
   precio,
   stock,
   disponible: true,
-  imagenUrl: `/platos/${imagen}.jpg`,
+  imagenUrl: null,
 })
-
-/** Recorte de la foto en la miniatura: el plato no siempre queda al centro del archivo. */
-const ENCUADRE: Record<string, string> = {
-  'patacon-suero': 'center 64%',
-  'posta-negra': '72% center',
-  enyucado: 'center 72%',
-  'jugo-corozo': '32% 48%',
-  'limonada-coco': 'center 28%',
-  cocada: 'center 62%',
-  agua: 'center 42%',
-}
-
-export const encuadreFoto = (id: string) => ENCUADRE[id] ?? 'center'
 
 /** Solo sirve en memoria. En Firebase el personal entra con su cuenta y la clave no vive en el repo. */
 export const CLAVE_DEMO = 'ribu-demo'
@@ -70,18 +56,18 @@ export const semillaDemo = (): Semilla => ({
     },
   ],
   productos: [
-    producto('patacon-suero', 'Patacón con suero', 'Entradas', 10_800, 40, 'Patacón grande con suero costeño', 'patacon'),
-    producto('carimanolas', 'Carimañolas x 3', 'Entradas', 8_100, 30, 'Rellenas de carne', 'carimanolas'),
-    producto('arepa-huevo', 'Arepa de huevo', 'Entradas', 5_400, 30, 'Frita, con huevo entero', 'arepa'),
-    producto('mojarra-frita', 'Mojarra frita', 'Platos fuertes', 32_400, 2, 'Con patacón, arroz de coco y ensalada', 'mojarra'),
-    producto('posta-negra', 'Posta negra', 'Platos fuertes', 37_800, 15, 'Con arroz de coco y plátano maduro', 'posta'),
-    producto('carne-asada', 'Bandeja de carne asada', 'Platos fuertes', 35_100, 20, 'Con yuca, arroz y ensalada', 'carne'),
-    producto('sancocho-gallina', 'Sancocho de gallina', 'Platos fuertes', 27_000, 25, 'Con arroz y aguacate', 'sancocho'),
-    producto('jugo-corozo', 'Jugo de corozo', 'Bebidas', 8_100, 40, 'En agua o en leche', 'corozo'),
-    producto('limonada-coco', 'Limonada de coco', 'Bebidas', 12_000, 30, 'Frappé', 'limonada'),
-    producto('agua', 'Agua en botella', 'Bebidas', 4_050, 50, '500 ml', 'agua'),
-    producto('enyucado', 'Enyucado', 'Postres', 8_100, 20, 'Porción individual', 'enyucado'),
-    producto('cocada', 'Cocada', 'Postres', 6_750, 20, 'Con panela', 'cocada'),
+    producto('patacon-suero', 'Patacón con suero', 'Entradas', 10_800, 40, 'Patacón grande con suero costeño'),
+    producto('carimanolas', 'Carimañolas x 3', 'Entradas', 8_100, 30, 'Rellenas de carne'),
+    producto('arepa-huevo', 'Arepa de huevo', 'Entradas', 5_400, 30, 'Frita, con huevo entero'),
+    producto('mojarra-frita', 'Mojarra frita', 'Platos fuertes', 32_400, 2, 'Con patacón, arroz de coco y ensalada'),
+    producto('posta-negra', 'Posta negra', 'Platos fuertes', 37_800, 15, 'Con arroz de coco y plátano maduro'),
+    producto('carne-asada', 'Bandeja de carne asada', 'Platos fuertes', 35_100, 20, 'Con yuca, arroz y ensalada'),
+    producto('sancocho-gallina', 'Sancocho de gallina', 'Platos fuertes', 27_000, 25, 'Con arroz y aguacate'),
+    producto('jugo-corozo', 'Jugo de corozo', 'Bebidas', 8_100, 40, 'En agua o en leche'),
+    producto('limonada-coco', 'Limonada de coco', 'Bebidas', 12_000, 30, 'Frappé'),
+    producto('agua', 'Agua en botella', 'Bebidas', 4_050, 50, '500 ml'),
+    producto('enyucado', 'Enyucado', 'Postres', 8_100, 20, 'Porción individual'),
+    producto('cocada', 'Cocada', 'Postres', 6_750, 20, 'Con panela'),
   ],
   mesas: [1, 2, 3, 4, 5].map((numero) => ({
     token: `demo-mesa-${numero}`,
