@@ -62,7 +62,7 @@ const cobros = (fetch: typeof globalThis.fetch, extra: Partial<OpcionesFactusPay
 const solicitud = { referencia: 'pago-1', monto: 150_000, expiraEnSegundos: 600 }
 
 test('crearCobro manda reference_code, amount y expiration a /v1/collections', async () => {
-  const falso = fetchFalso(json({ data: RECAUDO }, 201))
+  const falso = fetchFalso(json({ data: RECAUDO }))
   await cobros(falso.fetch).crearCobro(solicitud)
 
   expect(falso.llamadas).toHaveLength(1)
@@ -73,7 +73,7 @@ test('crearCobro manda reference_code, amount y expiration a /v1/collections', a
 })
 
 test('toda llamada lleva el token, el Accept y el User-Agent propio', async () => {
-  const falso = fetchFalso([json({ data: RECAUDO }, 201), json({ data: RECAUDO })])
+  const falso = fetchFalso([json({ data: RECAUDO }), json({ data: RECAUDO })])
   const servicio = cobros(falso.fetch)
   await servicio.crearCobro(solicitud)
   await servicio.consultarCobro('pago-1')
@@ -88,7 +88,7 @@ test('toda llamada lleva el token, el Accept y el User-Agent propio', async () =
 })
 
 test('nunca llama a /auth: eso revocaría el token de todo el equipo', async () => {
-  const falso = fetchFalso([json({ data: RECAUDO }, 201), json({ data: RECAUDO })])
+  const falso = fetchFalso([json({ data: RECAUDO }), json({ data: RECAUDO })])
   const servicio = cobros(falso.fetch)
   await servicio.crearCobro(solicitud)
   await servicio.consultarCobro('pago-1')
@@ -96,7 +96,7 @@ test('nunca llama a /auth: eso revocaría el token de todo el equipo', async () 
 })
 
 test('crearCobro lee el recaudo de data y lo deja en el formato del contrato', async () => {
-  const falso = fetchFalso(json({ data: RECAUDO, status: 'success', message: 'Recaudo creado' }, 201))
+  const falso = fetchFalso(json({ data: RECAUDO, status: 'success', message: 'Recaudo creado correctamente' }))
   expect(await cobros(falso.fetch).crearCobro(solicitud)).toEqual({
     referencia: 'pago-1',
     monto: 150_000,
@@ -110,8 +110,9 @@ test('crearCobro lee el recaudo de data y lo deja en el formato del contrato', a
   })
 })
 
-test('acepta 200, que es el recaudo que ya existía', async () => {
-  const falso = fetchFalso(json({ data: RECAUDO }, 200))
+test.each([200, 201])('acepta %s al crear', async (status) => {
+  // Probado en el sandbox: responde 200 si se envía `expiration` y 201 si no. Ribu siempre la envía.
+  const falso = fetchFalso(json({ data: RECAUDO }, status))
   expect(await cobros(falso.fetch).crearCobro(solicitud)).toMatchObject({ estado: 'ready' })
 })
 
@@ -127,7 +128,7 @@ test('consultarCobro hace GET con la referencia en la ruta', async () => {
 })
 
 test('la url con barra al final no duplica la barra', async () => {
-  const falso = fetchFalso(json({ data: RECAUDO }, 201))
+  const falso = fetchFalso(json({ data: RECAUDO }))
   await cobros(falso.fetch, { url: `${URL_SANDBOX}/` }).crearCobro(solicitud)
   expect(falso.llamadas[0].url).toBe(`${URL_SANDBOX}/v1/collections`)
 })
@@ -140,6 +141,7 @@ test('un estado que no conocemos es desconocido y no lanza error', async () => {
 test.each([
   ['sin status', undefined, 'desconocido'],
   ['started', 'started', 'started'],
+  ['created', 'created', 'created'],
   ['ready', 'ready', 'ready'],
   ['paid', 'paid', 'paid'],
   ['failed', 'failed', 'failed'],
@@ -191,6 +193,42 @@ test.each([null, undefined, '', '   ', 'ayer', '99-99-2026 08:03:04 PM', 7, {}])
     expect(aFecha(recibida)).toBeNull()
   },
 )
+
+test('las fechas llegan como las devolvió el sandbox, en hora de Colombia', async () => {
+  // Probado: crear a las 12:00 p. m. de Colombia devolvió `04-11-2026 12:00:40 PM`.
+  const recaudo = { ...RECAUDO, qr_expires_at: '04-11-2026 12:00:40 PM' }
+  const falso = fetchFalso(json({ data: recaudo }))
+  expect((await cobros(falso.fetch).consultarCobro('pago-1')).qrExpiraEn).toBe('2026-11-04T17:00:40.000Z')
+})
+
+test('un QR vencido sigue en ready: el vencimiento se mira con qrExpiraEn', async () => {
+  const recaudo = { ...RECAUDO, qr_expires_at: '01-11-2026 08:00:00 AM' }
+  const falso = fetchFalso(json({ data: recaudo }))
+  const cobro = await cobros(falso.fetch).consultarCobro('pago-1')
+  expect(cobro.estado).toBe('ready')
+  expect(Date.parse(cobro.qrExpiraEn!)).toBeLessThan(Date.parse('2026-11-04T00:00:00Z'))
+})
+
+test('un 422 del sandbox trae { message, errors } y el mensaje incluye el detalle', async () => {
+  const cuerpo = { message: 'Error de validación', errors: { amount: ['El monto debe estar entre 10000 y 12000000'] } }
+  const falso = fetchFalso(json(cuerpo, 422))
+  const error = (await cobros(falso.fetch)
+    .crearCobro(solicitud)
+    .catch((e: unknown) => e)) as ErrorIntegracion
+  expect(error).toMatchObject({ tipo: 'validacion', status: 422 })
+  expect(error.message).toBe('Factus Pay respondió 422: Error de validación: El monto debe estar entre 10000 y 12000000')
+})
+
+test('otro monto con la misma referencia responde 422 y no se reintenta', async () => {
+  const falso = fetchFalso(
+    json({ status: 'error', message: 'La referencia ya existe con un monto diferente.', data: null }, 422),
+  )
+  const error = (await cobros(falso.fetch)
+    .crearCobro({ ...solicitud, monto: 20_000 })
+    .catch((e: unknown) => e)) as ErrorIntegracion
+  expect(error).toMatchObject({ tipo: 'validacion', status: 422 })
+  expect(error.reintentable).toBe(false)
+})
 
 test('un 429 es limite y trae la espera del Retry-After', async () => {
   const falso = fetchFalso(json({ message: 'Demasiadas peticiones' }, 429, { 'Retry-After': '30' }))
@@ -251,7 +289,7 @@ test('un 404 no se reintenta y un 500 sí', async () => {
 })
 
 test('el mensaje del error dice el estado y el mensaje de Factus Pay', async () => {
-  const falso = fetchFalso(json({ status: 'error', message: 'Recaudo no encontrado' }, 404))
+  const falso = fetchFalso(json({ status: 'error', message: 'Recaudo no encontrado', data: null }, 404))
   await expect(cobros(falso.fetch).consultarCobro('pago-1')).rejects.toThrowError(
     'Factus Pay respondió 404: Recaudo no encontrado',
   )
@@ -312,7 +350,7 @@ test('una respuesta 200 sin data se reintenta como error de servidor', async () 
 
 test('si el recaudo no trae amount, crearCobro usa el monto que se pidió', async () => {
   const { amount: _, ...sinMonto } = RECAUDO
-  const falso = fetchFalso(json({ data: sinMonto }, 201))
+  const falso = fetchFalso(json({ data: sinMonto }))
   expect((await cobros(falso.fetch).crearCobro(solicitud)).monto).toBe(150_000)
 })
 
