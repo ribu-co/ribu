@@ -1,6 +1,6 @@
 # Datos de la demo
 
-Integración carga estos datos con el script de datos iniciales. El restaurante es inventado y los precios no salen de ninguna carta real. El sandbox de Factus es público, así que aquí no va ningún dato real del negocio. Las fotos sí son reales: vienen de Wikimedia Commons, con autor y licencia en `web/public/platos/CREDITOS.md` y en la página `/creditos`.
+Integración carga estos datos con `POST /api/interno/semilla`, en `flujo/semilla.ts`: ver [Despliegue](despliegue.md). El restaurante es inventado y los precios no salen de ninguna carta real. El sandbox de Factus es público, así que aquí no va ningún dato real del negocio. Las fotos sí son reales: vienen de Wikimedia Commons, con autor y licencia en `web/public/platos/CREDITOS.md` y en la página `/creditos`.
 
 Antes de elegir el nombre se buscó en la web y no apareció un restaurante con ese nombre. Conviene revisar también en Google Maps.
 
@@ -27,11 +27,11 @@ Son 5, con `numero` del 1 al 5, `estado: 'libre'` y `cuentaId: null`.
 
 El `token` no se escribe aquí porque este repositorio es público y el token no se debe poder adivinar. Lo genera el script.
 
-**Pedido a Integración:** el script no debe cambiar los tokens si se corre otra vez. Si cambian, los stickers NFC y los QR ya impresos dejan de funcionar. Hay que pasarle a Producto el link de cada mesa para hacer `docs/pruebas-fisicas.md`.
+La semilla no cambia los tokens si se corre otra vez, porque si cambian, los stickers NFC y los QR ya impresos dejan de funcionar. Su respuesta trae el link de cada mesa, que Producto necesita para hacer `docs/pruebas-fisicas.md`.
 
 ## Personal
 
-Una cuenta por rol: `mesero`, `cocina` y `admin`. Los correos y las claves no van en el repositorio.
+Una cuenta por rol: `plataforma`, `admin`, `mesero` y `cocina`. Los correos son `<rol>@ribu.test`. Las claves no van en el repositorio: las cuentas de demostración se entregan por privado.
 
 ## Carta
 
@@ -54,7 +54,7 @@ Una cuenta por rol: `mesero`, `cocina` y `admin`. Los correos y las claves no va
 
 Hay dos productos puestos a propósito:
 
-- **Mojarra frita:** tiene `stock: 2` para mostrar "agotado". El `stock` baja cuando el mesero confirma, no cuando el cliente pide. Al confirmar 2, queda en 0 y `disponible` pasa a `false`. Entre ensayos hay que devolverle el `stock`.
+- **Mojarra frita:** tiene `stock: 2` para mostrar "agotado". El `stock` baja cuando el mesero confirma, no cuando el cliente pide. Al confirmar 2, queda en 0 y `disponible` pasa a `false`. Entre ensayos, la semilla con `reiniciarDemo` devuelve el `stock`.
 - **Limonada de coco:** es el único precio con base inexacta. Sirve para probar el redondeo. En el sandbox, Factus ya validó una factura con `cash_rounding_amount` de `-0.01`, pero falta probar este precio desde la app. Los demás tienen base exacta, así que la demo principal no depende de eso. Úsala en la demo solo si ya pasó esa prueba.
 
 Factus Pay solo cobra desde $10.000. Las carimañolas, la arepa, el jugo, el agua, el enyucado y la cocada no alcanzan ese mínimo por sí solos, ni con 10 % de propina. Para pedirlos solos, hay que pagar en efectivo o con tarjeta.
