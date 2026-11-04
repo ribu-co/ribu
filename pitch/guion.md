@@ -1,6 +1,6 @@
 # Guion del pitch
 
-Máximo 5 minutos, y este guion dura unos 4:30. Lo que va en cita, y la columna "Qué se dice" de la demo, es lo que se dice en voz alta. Los datos de la demo salen de `docs/datos-demo.md`.
+Máximo 5 minutos. La pauta reserva 4:30; falta cronometrarla con Eddy. Lo que va en cita, y la columna "Qué se dice" de la demo, es lo que se dice en voz alta. Las preguntas del jurado y las notas de preparación quedan fuera de esos 4:30. Los datos de la demo salen de `docs/datos-demo.md`.
 
 **Idea central: la mesa cobra y factura sola.**
 
@@ -10,7 +10,7 @@ Máximo 5 minutos, y este guion dura unos 4:30. Lo que va en cita, y la columna 
 
 > Piensen en la última vez que dividieron una cuenta en un restaurante. Alguien pide la cuenta, esperan, cada quien paga distinto y alguien tiene que sacar varias facturas.
 >
-> Para el dueño, el pedido, el cobro y la factura son tres pasos separados. Y al final hay que cruzar qué plata corresponde a qué factura.
+> Nuestra hipótesis es que, cuando pedido, cobro y factura están separados, el dueño termina cruzando qué plata corresponde a qué factura. Todavía debemos validarla con restaurantes.
 
 Si `docs/validacion.md` tiene una frase real con permiso, va aquí, con el tipo de negocio. Si no hay, no se dice nada: **no se inventan testimonios**.
 
@@ -26,7 +26,7 @@ Se necesitan tres pantallas: el celular de la mesa, el mesero en el portátil y 
 
 | Paso | Qué se hace | Qué se dice |
 |---|---|---|
-| 1 | Abre la mesa 3 con el sticker | Toco el sticker y ya estoy en la mesa 3. Sin instalar nada y sin registrarme. |
+| 1 | Abre el enlace de la mesa 3; usa el sticker solo si ya pasó la prueba física | Abro el enlace y ya estoy en la mesa 3. Sin instalar nada y sin registrarme. |
 | 2 | Pide 2 mojarras, 2 jugos y 1 patacón | Pido. Esto todavía no va a cocina. |
 | 3 | El mesero confirma | El mesero confirma, y solo lo confirmado se puede pagar. Quedaban dos mojarras, así que la mojarra aparece agotada. |
 | 4 | Avanza el pedido en cocina | La cocina lo ve y lo va marcando. Toda la mesa ve el avance. |
@@ -49,7 +49,7 @@ Se necesitan tres pantallas: el celular de la mesa, el mesero en el portátil y 
 
 > ¿Qué gana el dueño? Primero, cada pago queda atado a su factura, sin cruzar extractos. Segundo, dividir la cuenta deja de ser un problema: cada persona paga lo suyo y recibe su factura.
 >
-> Y el costo es fijo: 952 pesos por recaudo, sin importar el valor, más 952 cada vez que pasa el dinero a su cuenta. En esta mesa de 100.000 pesos, el recaudo cuesta 952. Con un datáfono de 3 % más IVA, serían unos 3.600. En cuentas pequeñas el datáfono puede salir más barato, y por eso Ribu también registra efectivo y tarjeta.
+> Cada recaudo cuesta 952 pesos, más 952 por dispersión. El ahorro depende del importe y de cuántos recaudos se agrupen. Aún falta medir el ahorro de tiempo y fijar el precio de Ribu.
 
 ## 6. Cierre (4:20–4:30)
 
@@ -59,35 +59,35 @@ Se necesitan tres pantallas: el celular de la mesa, el mesero en el portátil y 
 
 ### ¿Por qué lo pagaría el dueño?
 
-> Porque le quita el trabajo de relacionar cada pago con su factura y de atender cuentas divididas, y porque cobra con un costo fijo. Todavía no hemos fijado un precio para Ribu ni medido cuánto tiempo ahorra.
+> Buscamos reducir el trabajo de relacionar cada pago con su factura y de atender cuentas divididas. Esa sería la razón para pagarlo, si el restaurante comprueba ese beneficio. Todavía no hemos fijado un precio para Ribu ni medido cuánto tiempo ahorra.
 
 Si `docs/validacion.md` ya tiene resultados, se agrega qué dijeron los restaurantes y cuántos fueron. Hay que decir que es una muestra pequeña.
 
 ### ¿Cuánto cuesta cobrar?
 
-> Cada recaudo cuesta 800 pesos más IVA: 952. Pasar el dinero a la cuenta del restaurante cuesta otros 952 por solicitud, y una solicitud puede acumular muchos recaudos. Frente a un datáfono del 3 %, conviene desde unos 27.000 a 32.000 pesos por pago. Frente a una tarifa de 1,98 %, desde unos 40.000. Por debajo de eso, el datáfono es más barato.
+> Cada recaudo cuesta 800 pesos más IVA: 952 con IVA del 19 %. Cada solicitud de dispersión cuesta otros 952. Frente a una comisión total del 3 %, el equilibrio del recaudo solo está cerca de 31.734 pesos; al incluir la dispersión sube. Depende de cuántos recaudos acumule el restaurante antes de dispersar. Hay que comparar su tarifa real y los otros costos antes de prometer ahorro.
 
 Tarifas de Factus Pay confirmadas en sus [preguntas frecuentes](https://pay-developers.factus.com.co/preguntas-frecuentes/) el 4 de noviembre de 2026. El IVA del 19 % se aplicó para llegar a $952.
 
-| Comparado con | Conviene desde | Cómo sale |
+El 3 % es un **escenario de comparación pedido por el equipo**, no una tarifa verificada de un proveedor. La tabla calcula igualdad de costos, redondeada hacia arriba al peso; el ahorro empieza por encima del equilibrio. No se usa el piso de $22.000 porque no se sostiene con estos supuestos.
+
+| Escenario hipotético | Equilibrio por pago | Cómo sale |
 |---|---:|---|
-| 3 %, con el IVA incluido | $31.733 | 952 ÷ 0,03 |
-| 3 % + IVA | $26.667 | 952 ÷ 0,0357 |
-| 3 % + IVA, con 5 recaudos por dispersión | $32.000 | (952 + 952 ÷ 5) ÷ 0,0357 |
-| 3 % + IVA, con 20 recaudos por dispersión | $28.000 | (952 + 952 ÷ 20) ÷ 0,0357 |
-| 1,98 % + IVA | $40.404 | 952 ÷ 0,023562 |
-| 1 % + IVA, el QR de Wompi | $80.000 | 952 ÷ 0,0119 |
+| Comisión total 3 %, sin asignar dispersión | $31.734 | 952 ÷ 0,03 |
+| Comisión total 3 %, con 5 recaudos por dispersión | $38.080 | (952 + 952 ÷ 5) ÷ 0,03 |
+| Comisión total 3 %, con 20 recaudos por dispersión | $33.320 | (952 + 952 ÷ 20) ÷ 0,03 |
+| Comisión total 3 %, con una dispersión por recaudo | $63.467 | (952 + 952) ÷ 0,03 |
+| Comisión 3 % + IVA 19 %, sin asignar dispersión | $26.667 | 952 ÷ 0,0357 |
+| Comisión 3 % + IVA 19 %, con 5 recaudos por dispersión | $32.000 | (952 + 952 ÷ 5) ÷ 0,0357 |
 
-De dónde salen las tarifas de comparación:
+Los $952 son el cálculo `800 × 1,19`. Para `n` recaudos del mismo importe y una sola dispersión, el costo promedio de Factus Pay por pago es `952 + 952/n`. Frente a una tasa total `t`, el equilibrio es `(952 + 952/n) / t`. Son cálculos del equipo sobre las tarifas citadas, no resultados de clientes.
 
-- **3 %:** es una cifra de referencia del equipo, no la tarifa de un proveedor. Tarifas publicadas: [ARQ](https://www.arqfinance.com/es-CO/blog/your-money/es-legal-cobrar-comision-pagar-con-tarjeta) cita 2,99 % para Bold y para Redeban. Falta confirmarlas en cada proveedor.
-- **1,98 %:** [Bancolombia](https://www.bancolombia.com/pagos/datafono) publica "desde 1,98 % + impuestos" para su datáfono, con suscripción mensual si se hacen menos de 50 transacciones. Se asumió que "impuestos" es IVA del 19 %.
-- **1 %:** [Enter.co](https://www.enter.co/fintech/wompi-baja-la-tarifa-del-qr-al-1-y-amplia-los-pagos-desde-el-celular/) reporta que el QR de Wompi bajó a 1 % más IVA. Aclara que aplica a personas naturales y a pagos desde Bancolombia y Nequi, así que no es una tarifa general.
+No usar otras tarifas de competidores hasta verificar su fuente primaria, impuestos, cargos fijos y condiciones del restaurante.
 
 Si preguntan por lo que no cubre esta cuenta:
 
-- No incluye el costo de Factus facturación ni un precio de Ribu, porque no los tenemos.
-- Dividir la cuenta cuesta más: 3 partes son 3 recaudos, $2.856. Con partes de $30.600, cada una cuesta $952, frente a $1.092 con un datáfono de 3 % + IVA y $721 con uno de 1,98 % + IVA.
+- No incluye el costo de Factus facturación ni un precio de Ribu, porque no los tenemos; tampoco otros cargos, impuestos o planes del medio comparado.
+- Dividir la cuenta cuesta más: 3 partes son 3 recaudos, $2.856, antes de dispersar. Con partes de $30.600, una comisión total hipotética de 3 % sería $918 por parte: menor que $952. No se promete ahorro en ese caso.
 - El dinero queda custodiado por Bancoomeva hasta que se ordena la dispersión. No llega solo a la cuenta del restaurante.
 
 ### ¿Qué pasa con el efectivo y la tarjeta? ¿Y si hay que devolver dinero?
@@ -106,7 +106,7 @@ Si preguntan por lo que no cubre esta cuenta:
 >
 > El riesgo real es un sticker falso que lleve a otra página. Ribu no puede impedir que alguien lo pegue. Lo que sí pasa es que ese pago nunca entra a la cuenta real: el mesero sigue viendo el saldo y no puede liberar la mesa. Se detecta, pero el cliente ya pudo perder su dinero.
 >
-> Por eso la protección es física y de operación: revisar los stickers y bloquear la escritura del NFC. Todavía no la hemos probado en un restaurante.
+> Por eso debemos revisar los stickers, mostrar el dominio oficial y pedir que el cliente lo compruebe. Bloquear la escritura del NFC puede impedir regrabar ese tag, pero no evita clonarlo ni cubrirlo con otro. Todavía no lo hemos probado en un restaurante.
 
 Después de `docs/pruebas-fisicas.md`, agrega qué nombre ve el cliente en su banco antes de pagar. Factus Pay no lo documenta. Si no se ha probado, no lo menciones.
 
