@@ -722,6 +722,69 @@ describe('verificar', () => {
     expect(consultas).toBe(2)
   })
 
+  test('lo puede consultar cualquier cliente de la mesa, no solo quien creó el pago', async () => {
+    const e = crearEscenario()
+    await e.pedido([['plato', 1]])
+    const { datos: pago } = await e.pagar(SALDO, { token: quien.cliente('duena') })
+    e.cobros.marcarPagado(pago.id)
+    const { status, datos } = await e.pedir('POST', `/api/mesas/${MESA_1}/pagos/${pago.id}/verificar`, quien.cliente('otra'))
+    expect(status).toBe(200)
+    expect(datos.estado).toBe('pagado')
+  })
+
+  test('marca vencido según qrExpiraEn, aunque Factus Pay siga diciendo ready', async () => {
+    const e = crearEscenario()
+    const cuenta = await e.pedido([['plato', 1]])
+    const { datos: pago } = await e.pagar(SALDO)
+    const ruta = `/api/mesas/${MESA_1}/pagos/${pago.id}/verificar`
+    e.avanzar(599)
+    expect((await e.pedir('POST', ruta, quien.cliente('otra'))).datos.estado).toBe('esperando_pago')
+    e.avanzar(6)
+    const { datos } = await e.pedir('POST', ruta, quien.cliente('otra'))
+    expect(datos.estado).toBe('vencido')
+    expect(datos.cobro.estado).toBe('ready')
+    expect(await e.leerCuenta(cuenta.id)).toMatchObject({ enCobro: 0, porPagar: 54_000 })
+  })
+
+  test.each(['vencido', 'cancelado'])('sigue consultando un pago %s, y si entró la plata vale', async (estado) => {
+    const e = crearEscenario()
+    const cuenta = await e.pedido([['plato', 1]])
+    const { datos: pago } = await e.pagar(SALDO)
+    const ruta = `/api/mesas/${MESA_1}/pagos/${pago.id}/verificar`
+    if (estado === 'cancelado') await cancelar(e, pago.id)
+    else e.avanzar(601)
+    expect((await e.pedir('POST', ruta, quien.cliente())).datos.estado).toBe(estado)
+    e.avanzar(6)
+    expect((await e.pedir('POST', ruta, quien.cliente())).datos.estado).toBe(estado)
+    e.cobros.marcarPagado(pago.id)
+    e.avanzar(6)
+    const { datos } = await e.pedir('POST', ruta, quien.cliente())
+    expect(datos).toMatchObject({ estado: 'pagado', incidencia: null })
+    expect((await e.leerCuenta(cuenta.id)).pagado).toBe(54_000)
+  })
+
+  test('sigue consultando un pago vencido, y si otro ya pagó queda duplicado', async () => {
+    const e = crearEscenario()
+    const cuenta = await e.pedido([['plato', 1]])
+    const { datos: viejo } = await e.pagar(SALDO)
+    e.avanzar(601)
+    await e.pagoCompleto(SALDO, { token: quien.cliente('cliente-2') })
+    e.cobros.marcarPagado(viejo.id)
+    const { datos } = await e.pedir('POST', `/api/mesas/${MESA_1}/pagos/${viejo.id}/verificar`, quien.cliente())
+    expect(datos).toMatchObject({ estado: 'pagado', incidencia: 'pago_duplicado' })
+    expect((await e.leerCuenta(cuenta.id)).pagado).toBe(54_000)
+  })
+
+  test('una consulta que no trae el QR no borra el que ya tenía el pago', async () => {
+    const e = crearEscenario()
+    await e.pedido([['plato', 1]])
+    const { datos: pago } = await e.pagar(SALDO)
+    const { cobros } = e
+    e.ctx.cobros = { ...cobros, consultarCobro: async (ref) => ({ ...(await cobros.consultarCobro(ref)), qrBase64: null, llaveBreB: null }) }
+    const { datos } = await e.pedir('POST', `/api/mesas/${MESA_1}/pagos/${pago.id}/verificar`, quien.cliente())
+    expect(datos.cobro).toMatchObject({ qrBase64: pago.cobro.qrBase64, llaveBreB: pago.cobro.llaveBreB })
+  })
+
   test('un pago de otra mesa no existe aquí', async () => {
     const e = crearEscenario()
     await e.pedido([['plato', 1]])

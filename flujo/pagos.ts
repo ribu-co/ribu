@@ -162,6 +162,14 @@ export async function crearPago(ctx: Contexto, identidad: Identidad, token: stri
   }
 }
 
+/** Una consulta puede no traer el QR ni la llave: no se pierde lo que ya se le mostró al cliente. */
+const cobroAlDia = (anterior: Cobro | null, cobro: Cobro): Cobro => ({
+  ...cobro,
+  qrBase64: cobro.qrBase64 ?? anterior?.qrBase64 ?? null,
+  llaveBreB: cobro.llaveBreB ?? anterior?.llaveBreB ?? null,
+  qrExpiraEn: cobro.qrExpiraEn ?? anterior?.qrExpiraEn ?? null,
+})
+
 async function guardarCobro(ctx: Contexto, pago: PagoDoc, cobro: Cobro) {
   return ctx.db.transaccion(async (tx) => {
     const actual = await tx.leer<PagoDoc>(rutaPago(pago.restauranteId, pago.id))
@@ -226,7 +234,7 @@ export async function confirmarPago(
     }
 
     pago.estado = 'pagado'
-    pago.cobro = cobro
+    pago.cobro = cobroAlDia(pago.cobro, cobro)
     pago.pagadoEn = cobro.recaudadoEn ?? iso(ahora)
     pago.incidencia = vale ? null : 'pago_duplicado'
     pago.estadoFactura = vale ? 'en_proceso' : 'sin_emitir'
@@ -254,8 +262,8 @@ async function reflejarCobro(ctx: Contexto, restauranteId: string, pagoId: strin
     const pago = await tx.leer<PagoDoc>(ruta)
     if (!pago) return null
     if (cobro) {
-      pago.cobro = cobro
-      tx.actualizar(ruta, { cobro })
+      pago.cobro = cobroAlDia(pago.cobro, cobro)
+      tx.actualizar(ruta, { cobro: pago.cobro })
     }
     if (pago.estado !== 'esperando_pago') return pago
 

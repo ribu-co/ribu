@@ -47,7 +47,7 @@ const productoDe = ([id, nombre, categoria, precio, stock, descripcion]: FilaCar
   precio,
   stock,
   disponible: true,
-  imagenUrl: null,
+  imagenUrl: `/platos/${id}.jpg`,
 })
 
 export type RolSemilla = RolPersonal | 'plataforma'
@@ -123,7 +123,9 @@ export async function sembrar(ctx: Contexto, solicitud: SolicitudSemilla, origen
       const ruta = rutaProducto(RESTAURANTE_DEMO, producto.id)
       const actual = await tx.leer<Producto>(ruta)
       if (!actual) tx.guardar(ruta, producto)
-      else if (solicitud.reiniciarDemo) tx.actualizar(ruta, { stock: producto.stock, disponible: true })
+      else if (solicitud.reiniciarDemo) tx.actualizar(ruta, { stock: producto.stock, disponible: true, imagenUrl: producto.imagenUrl })
+      // Lo sembrado antes de que existieran las fotos: una imagen que puso el administrador no se toca.
+      else if (actual.imagenUrl === null) tx.actualizar(ruta, { imagenUrl: producto.imagenUrl })
     }
 
     const existentes = await tx.consultar<Mesa>(rutas.mesas, { campo: 'restauranteId', op: '==', valor: RESTAURANTE_DEMO })

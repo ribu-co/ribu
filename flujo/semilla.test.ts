@@ -72,7 +72,7 @@ describe('sembrar', () => {
         stock,
         descripcion,
         disponible: true,
-        imagenUrl: null,
+        imagenUrl: `/platos/${id}.jpg`,
       })
       expect(baseSinImpuesto(precio, { tipo: 'INC', porcentaje: 8 })).toBe(base)
     }
@@ -106,6 +106,18 @@ describe('sembrar', () => {
     })
     await sembrar(e.ctx, solicitud(), ORIGEN)
     expect(await productoDemo(e, 'mojarra-frita')).toMatchObject({ stock: 0, disponible: false, precio: 40_000 })
+  })
+
+  test('completa la foto de lo ya sembrado, sin tocar la que puso el administrador ni el stock', async () => {
+    const e = crearEscenario()
+    await sembrar(e.ctx, solicitud(), ORIGEN)
+    await e.db.transaccion(async (tx) => {
+      tx.actualizar(`restaurantes/${RESTAURANTE_DEMO}/productos/agua`, { imagenUrl: null, stock: 7 })
+      tx.actualizar(`restaurantes/${RESTAURANTE_DEMO}/productos/cocada`, { imagenUrl: '/mi-foto.jpg' })
+    })
+    await sembrar(e.ctx, solicitud(), ORIGEN)
+    expect(await productoDemo(e, 'agua')).toMatchObject({ imagenUrl: '/platos/agua.jpg', stock: 7 })
+    expect((await productoDemo(e, 'cocada')).imagenUrl).toBe('/mi-foto.jpg')
   })
 
   test('reiniciar la demo le devuelve el stock a la mojarra entre ensayos', async () => {
