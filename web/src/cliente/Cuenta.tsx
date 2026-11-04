@@ -1,12 +1,21 @@
 import type { ReactNode } from 'react'
 import { lineaSuma } from '../../../contratos/reglas'
-import type { Cuenta as TipoCuenta } from '../../../contratos/tipos'
+import type { Cuenta as TipoCuenta, ResumenPago } from '../../../contratos/tipos'
+import { usarFuente } from '../datos/contexto'
 import type { Sesion } from '../datos/fuente'
 import { Boton, Chip } from '../ui/Controles'
 import { Vacio } from '../ui/Estados'
 import { pesos, plural } from '../ui/formato'
 import { Icono } from '../ui/Icono'
-import { cobrosAjenos, etiquetaPago, miCobroActivo, todoPagado, unidadesPorConfirmar } from './cuenta'
+import { usarConsultaCobro } from './usarConsultaCobro'
+import { cobrosAjenos, consultarCobros, etiquetaPago, miCobroActivo, todoPagado, unidadesPorConfirmar } from './cuenta'
+
+/** No pinta nada: mantiene al día los cobros de otras personas, por si un QR venció y nadie lo está mirando. */
+function ConsultaCobrosAjenos({ token, pagos }: { token: string; pagos: ResumenPago[] }) {
+  const fuente = usarFuente()
+  usarConsultaCobro(pagos.length > 0, () => consultarCobros((id) => fuente.verificarPago(token, id), pagos))
+  return null
+}
 
 /** Medio anillo: lo pagado, lo que está en cobro y, rayado, lo que falta. */
 export function Medidor({ consumo, pagado, enCobro }: { consumo: number; pagado: number; enCobro: number }) {
@@ -114,6 +123,7 @@ export function Cuenta({
           </span>
         </button>
       )}
+      <ConsultaCobrosAjenos token={cuenta.mesaToken} pagos={ajenos} />
       {ajenos.map((p) => (
         <p key={p.id} className="aviso aviso--info">
           <span className="girando girando--chico" aria-hidden="true" />

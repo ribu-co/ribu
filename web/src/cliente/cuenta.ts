@@ -10,6 +10,13 @@ export const miCobroActivo = (cuenta: Cuenta, uid: string) => cobrosActivos(cuen
 
 export const cobrosAjenos = (cuenta: Cuenta, uid: string) => cobrosActivos(cuenta).filter((p) => p.creadoPor !== uid)
 
+/**
+ * Quien generó un cobro puede irse sin pagar, y su QR sigue reservando la cuenta. Por eso los demás
+ * de la mesa también consultan esos cobros: al vencer, lo que cubrían vuelve a quedar por pagar.
+ */
+export const consultarCobros = (verificar: (pagoId: string) => Promise<unknown>, pagos: readonly Pick<ResumenPago, 'id'>[]) =>
+  Promise.allSettled(pagos.map((p) => verificar(p.id)))
+
 /** Todo lo confirmado ya está pagado: la página no ofrece pagar. */
 export const todoPagado = (cuenta: Cuenta) => cuenta.consumo > 0 && cuenta.porPagar === 0 && cuenta.enCobro === 0
 
