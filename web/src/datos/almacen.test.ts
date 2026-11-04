@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { almacenCompartido, almacenSesionDePestana, reiniciarDemo } from './almacen'
+import { almacenCompartido, almacenSesionDePestana } from './almacen'
 import { crearFuenteMemoria } from './memoria'
 
 function almacenFalso(): Storage {
@@ -26,8 +26,10 @@ test('el pedido sobrevive a recargar la página y se borra al reiniciar la demo'
   const despues = crearFuenteMemoria({ almacen, programar: () => {} })
   expect(despues.estado().mesas['demo-mesa-1']?.estado).toBe('ocupada')
 
-  reiniciarDemo('prueba', local)
-  expect(crearFuenteMemoria({ almacen }).estado().mesas['demo-mesa-1']?.estado).toBe('libre')
+  despues.simulador.reiniciar()
+  expect(local.getItem('prueba')).toBeNull()
+  expect(despues.estado().mesas['demo-mesa-1']?.estado).toBe('libre')
+  expect(despues.simulador.mesasDemo().map((m) => m.numero)).toEqual([1, 2, 3, 4, 5])
 })
 
 test('la sesión vive en la pestaña y se borra al salir', async () => {

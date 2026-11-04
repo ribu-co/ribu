@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, test } from 'vitest'
 import { calcularPropina, COBRO_EXPIRACION_SEGUNDOS } from '../../../contratos/reglas'
 import type { Comprador, Cuenta, Factura, SolicitudPago } from '../../../contratos/tipos'
 import { comoErrorDatos, ErrorDatos } from './fuente'
-import { compradorValido, crearFuenteMemoria, pdfDePrueba, type Almacen, type EstadoMemoria } from './memoria'
+import { compradorValido } from './comprador'
+import { crearFuenteMemoria, pdfDePrueba, type Almacen, type EstadoMemoria } from './memoria'
 import { CLAVE_DEMO } from './semilla'
 
 const MESA = 'demo-mesa-3'
@@ -21,6 +22,9 @@ function almacenCompartidoDePrueba() {
       guardar(estado) {
         guardado = structuredClone(estado)
         for (const aviso of avisos) if (aviso !== propio) aviso()
+      },
+      borrar() {
+        guardado = null
       },
       alCambiarFuera(aviso) {
         propio = aviso
