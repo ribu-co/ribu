@@ -10,23 +10,32 @@ Ribu gestiona los pedidos, los pagos y la facturación electrónica de un restau
 
 ## Cómo se comunican las piezas
 
-- **Órdenes:** la web llama a la API con un ID token de Firebase. El cliente entra de forma anónima, sin registro. El personal entra con login y los claims `restauranteId` y `rol`.
+- **Órdenes:** la web llama a la API con un ID token de Firebase. El cliente entra de forma anónima, sin registro. El personal entra con login y los claims `restauranteId` y `rol`. Quien administra Ribu entra con el rol `plataforma`, sin `restauranteId`.
 - **Lecturas:** la web escucha Firestore, así toda la mesa ve los cambios al instante.
 - **Escrituras:** solo el backend escribe en Firestore. La web nunca envía precios, totales ni estados de pago.
-- **Credenciales:** van en Secret Manager, por restaurante, porque cada NIT tiene las suyas. Nunca en Firestore ni en la web.
-- **Datos iniciales:** el restaurante, las mesas y el personal se crean con un script.
+- **Credenciales:** van en Secret Manager, nunca en Firestore ni en la web. En el reto todos los restaurantes usan las mismas credenciales del sandbox. En producción, cada NIT necesitaría las suyas.
+- **Datos iniciales:** un script crea la cuenta de la plataforma y el restaurante de la demo, sin cambiar los tokens de sus mesas si se corre otra vez. Los demás restaurantes se crean desde el panel.
 
 | Documento | Formato | Quién lo lee |
 |---|---|---|
 | `mesas/{token}` | `Mesa` | Quien tenga el link. El personal puede listarlas |
-| `restaurantes/{id}` | `Restaurante` | Cualquier sesión |
+| `restaurantes/{id}` | `Restaurante` | Cualquier sesión. La plataforma puede listarlos |
+| `restaurantes/{id}/personal/{uid}` | `Personal` | El administrador de ese restaurante y la plataforma |
 | `restaurantes/{id}/productos/{id}` | `Producto` | Cualquier sesión |
 | `restaurantes/{id}/cuentas/{id}` | `Cuenta` | Quien tenga el id, que sale de la mesa. El personal puede listarlas |
-| `restaurantes/{id}/pagos/{id}` | `Pago` | Quien tenga el id, que sale de la cuenta. El personal puede listarlos |
-| `restaurantes/{id}/facturas/{pagoId}` | `Factura` | Solo quien creó el pago y el personal |
-| `restaurantes/{id}/notas/{id}` | `Nota` | Solo el personal |
+| `restaurantes/{id}/pagos/{id}` | `Pago` | Quien tenga el id, que sale de la cuenta. Solo el administrador y la plataforma pueden listarlos |
+| `restaurantes/{id}/facturas/{pagoId}` | `Factura` | Solo quien creó el pago y el personal. Solo el administrador y la plataforma pueden listarlas |
+| `restaurantes/{id}/notas/{id}` | `Nota` | Solo el administrador y la plataforma |
 
 ## Reglas
+
+**Plataforma**
+
+- La plataforma crea restaurantes, sus mesas y su personal, y puede desactivarlos.
+- El administrador de un restaurante gestiona su carta, sus mesas y su personal, pero no ve otros restaurantes.
+- El mesero, la cocina y el administrador ven todas las cuentas abiertas de su restaurante.
+- Un restaurante inactivo responde `RESTAURANTE_INACTIVO` a pedidos y pagos.
+- Cada restaurante tiene un dashboard con lo vendido, cobrado y facturado, las facturas por resolver y las devoluciones pendientes. Solo lo ven su administrador y la plataforma, y las reglas de Firestore lo garantizan: no basta con esconder la pantalla.
 
 **Mesa**
 

@@ -247,6 +247,101 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Mesa' }
         default: { $ref: '#/components/responses/Error' }
+  /api/restaurantes:
+    post:
+      operationId: crearRestaurante
+      summary: Crea un restaurante con sus mesas
+      x-roles: [plataforma]
+      x-errores: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NuevoRestaurante' }
+      responses:
+        '201':
+          description: El restaurante y sus mesas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestauranteCreado' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/restaurantes/{restauranteId}:
+    parameters:
+      - $ref: '#/components/parameters/restauranteId'
+    patch:
+      operationId: actualizarRestaurante
+      summary: Cambia los datos de un restaurante o lo desactiva
+      description: El administrador solo puede cambiar el suyo, y `activo` solo lo cambia la plataforma.
+      x-roles: [plataforma, admin]
+      x-errores: [NO_ENCONTRADO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CambiosRestaurante' }
+      responses:
+        '200':
+          description: El restaurante
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Restaurante' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/restaurantes/{restauranteId}/mesas:
+    parameters:
+      - $ref: '#/components/parameters/restauranteId'
+    post:
+      operationId: agregarMesas
+      summary: Agrega mesas con los números siguientes
+      description: Cada mesa recibe un token nuevo para su sticker. Los tokens existentes no cambian.
+      x-roles: [plataforma, admin]
+      x-errores: [NO_ENCONTRADO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudMesas' }
+      responses:
+        '201':
+          description: Las mesas creadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Mesa' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/restaurantes/{restauranteId}/personal:
+    parameters:
+      - $ref: '#/components/parameters/restauranteId'
+    post:
+      operationId: crearPersonal
+      summary: Crea una cuenta de mesero, cocina o administrador
+      x-roles: [plataforma, admin]
+      x-errores: [NO_ENCONTRADO, CORREO_EN_USO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NuevoPersonal' }
+      responses:
+        '201': { $ref: '#/components/responses/Personal' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/restaurantes/{restauranteId}/personal/{uid}:
+    parameters:
+      - $ref: '#/components/parameters/restauranteId'
+      - $ref: '#/components/parameters/uid'
+    patch:
+      operationId: actualizarPersonal
+      summary: Cambia una cuenta del personal o le quita el acceso
+      x-roles: [plataforma, admin]
+      x-errores: [NO_ENCONTRADO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CambiosPersonal' }
+      responses:
+        '200': { $ref: '#/components/responses/Personal' }
+        default: { $ref: '#/components/responses/Error' }
   /api/productos:
     post:
       operationId: crearProducto
@@ -418,6 +513,7 @@ components:
     notaId: { name: notaId, in: path, required: true, schema: { type: string } }
     productoId: { name: productoId, in: path, required: true, schema: { type: string } }
     restauranteId: { name: restauranteId, in: path, required: true, schema: { type: string } }
+    uid: { name: uid, in: path, required: true, schema: { type: string } }
   responses:
     Cuenta:
       description: La cuenta actualizada
@@ -444,6 +540,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Mesa' }
+    Personal:
+      description: La cuenta del personal
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Personal' }
     Producto:
       description: El producto
       content:
@@ -471,13 +572,83 @@ components:
     ConceptoNotaCredito: { type: string, enum: [devolucion_parcial, anulacion, rebaja, ajuste_precio] }
     ConceptoNotaDebito: { type: string, enum: [intereses, gastos_por_cobrar, cambio_valor, otros] }
     EstadoDevolucion: { type: string, enum: [no_aplica, pendiente, hecha] }
-    CodigoError: { type: string, enum: [CUERPO_INVALIDO, NO_AUTORIZADO, SIN_PERMISO, NO_ENCONTRADO, PRODUCTO_NO_DISPONIBLE, STOCK_INSUFICIENTE, TRANSICION_INVALIDA, LINEA_CON_PAGO, NADA_POR_PAGAR, CANTIDAD_NO_DISPONIBLE, PARTE_NO_DISPONIBLE, DIVISION_ACTIVA, PAGO_EN_CURSO, MONTO_FUERA_DE_RANGO, PROPINA_INVALIDA, COMPRADOR_INVALIDO, MESA_CON_SALDO, FACTURA_NO_DISPONIBLE, NOTA_INVALIDA, NOTA_EXCEDE_FACTURA, SERVICIO_NO_DISPONIBLE] }
+    CodigoError: { type: string, enum: [CUERPO_INVALIDO, NO_AUTORIZADO, SIN_PERMISO, NO_ENCONTRADO, PRODUCTO_NO_DISPONIBLE, STOCK_INSUFICIENTE, TRANSICION_INVALIDA, LINEA_CON_PAGO, NADA_POR_PAGAR, CANTIDAD_NO_DISPONIBLE, PARTE_NO_DISPONIBLE, DIVISION_ACTIVA, PAGO_EN_CURSO, MONTO_FUERA_DE_RANGO, PROPINA_INVALIDA, COMPRADOR_INVALIDO, MESA_CON_SALDO, FACTURA_NO_DISPONIBLE, NOTA_INVALIDA, NOTA_EXCEDE_FACTURA, CORREO_EN_USO, RESTAURANTE_INACTIVO, SERVICIO_NO_DISPONIBLE] }
+    RolPersonal: { type: string, enum: [mesero, cocina, admin] }
     Impuesto:
       type: object
       required: [tipo, porcentaje]
       properties:
         tipo: { $ref: '#/components/schemas/TipoImpuesto' }
         porcentaje: { type: number }
+    Restaurante:
+      type: object
+      required: [id, nombre, impuesto, propinasSugeridas, activo]
+      properties:
+        id: { type: string }
+        nombre: { type: string }
+        impuesto: { $ref: '#/components/schemas/Impuesto' }
+        propinasSugeridas:
+          type: array
+          items: { type: number }
+        activo: { type: boolean }
+    NuevoRestaurante:
+      type: object
+      required: [nombre, impuesto, propinasSugeridas, mesas]
+      properties:
+        nombre: { type: string }
+        impuesto: { $ref: '#/components/schemas/Impuesto' }
+        propinasSugeridas:
+          type: array
+          items: { type: number }
+        mesas: { type: integer, minimum: 1 }
+    CambiosRestaurante:
+      type: object
+      properties:
+        nombre: { type: string }
+        impuesto: { $ref: '#/components/schemas/Impuesto' }
+        propinasSugeridas:
+          type: array
+          items: { type: number }
+        activo: { type: boolean }
+    RestauranteCreado:
+      type: object
+      required: [restaurante, mesas]
+      properties:
+        restaurante: { $ref: '#/components/schemas/Restaurante' }
+        mesas:
+          type: array
+          items: { $ref: '#/components/schemas/Mesa' }
+    Personal:
+      type: object
+      required: [uid, restauranteId, correo, nombre, rol, activo, creadoEn]
+      properties:
+        uid: { type: string }
+        restauranteId: { type: string }
+        correo: { type: string }
+        nombre: { type: string }
+        rol: { $ref: '#/components/schemas/RolPersonal' }
+        activo: { type: boolean }
+        creadoEn: { type: string, format: date-time }
+    NuevoPersonal:
+      type: object
+      required: [correo, nombre, rol, clave]
+      properties:
+        correo: { type: string }
+        nombre: { type: string }
+        rol: { $ref: '#/components/schemas/RolPersonal' }
+        clave: { type: string, minLength: 8 }
+    CambiosPersonal:
+      type: object
+      properties:
+        nombre: { type: string }
+        rol: { $ref: '#/components/schemas/RolPersonal' }
+        activo: { type: boolean }
+        clave: { type: string, minLength: 8 }
+    SolicitudMesas:
+      type: object
+      required: [cantidad]
+      properties:
+        cantidad: { type: integer, minimum: 1 }
     Producto:
       type: object
       required: [id, restauranteId, nombre, descripcion, categoria, precio, stock, disponible, imagenUrl]
