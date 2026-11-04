@@ -119,10 +119,21 @@ function esperaDe(cabeceras: Headers): number | undefined {
   return Math.max(0, Math.ceil((fecha - Date.now()) / 1000))
 }
 
+/** Los textos de `errors`, que en una validación del sandbox llega como `{ campo: ['texto'] }`. */
+function detallesDe(errores: unknown): string[] {
+  if (typeof errores === 'string') return [errores]
+  if (Array.isArray(errores)) return errores.flatMap(detallesDe)
+  if (errores && typeof errores === 'object') return Object.values(errores).flatMap(detallesDe)
+  return []
+}
+
+/** Probado en el sandbox: una validación trae `{ message, errors }` y un 404 `{ status, message, data: null }`. */
 function mensajeDe(json: unknown): string | null {
   if (!json || typeof json !== 'object') return null
   const cuerpo = json as Record<string, unknown>
-  return aTexto(cuerpo.message) ?? aTexto(cuerpo.error)
+  const mensaje = aTexto(cuerpo.message) ?? aTexto(cuerpo.error)
+  const detalle = detallesDe(cuerpo.errors).join(' ')
+  return [mensaje, detalle].filter(Boolean).join(': ') || null
 }
 
 /**

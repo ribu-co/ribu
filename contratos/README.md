@@ -45,6 +45,7 @@ Ribu gestiona los pedidos, los pagos y la facturación electrónica de un restau
 
 - Solo se paga lo confirmado.
 - Cada pago genera su propio cobro y su propia factura, y cada cobro cuesta $800 + IVA.
+- Factus Pay solo cobra de $10.000 a $12.000.000. Una cuenta o una parte por debajo de ese mínimo se paga en efectivo o con tarjeta.
 - La cuenta se divide de dos formas: partes iguales (`parte_igual`) o eligiendo productos (`productos`).
 - Una misma unidad no puede estar en dos pagos. Si alguien intenta cobrar lo mismo, responde `PAGO_EN_CURSO`.
 - Un pago congela lo que cubre y su monto. Lo que se pida después va a otro pago, con otra referencia.
@@ -77,17 +78,45 @@ Ribu gestiona los pedidos, los pagos y la facturación electrónica de un restau
 - Una factura no se puede acreditar por más de su valor: ver `saldoAcreditable`.
 - Las notas siguen las mismas reglas de rechazo, demora, reintentos, PDF y correo que la factura.
 
-## Por confirmar en el sandbox
+## Probado en el sandbox de Factus v2
 
-- **Consumidor final:** el documento es `222222222222` en las preguntas frecuentes y `22222222222` en el ejemplo oficial.
-- **INC:** que Factus acepte el código `04` con tasa `8.00`, y cómo se envía `ninguno`.
-- **Redondeo:** que `cash_rounding_amount` cuadre el total con precios sin impuesto de dos decimales.
-- **Correo:** `send_email` solo funciona en producción. La página de `send-email` de facturas solo pide `email`, y las preguntas frecuentes hablan de enviar el PDF en base64.
-- **Notas:** la forma de la respuesta y el nombre del código único, que la documentación no muestra. Si `items.note` es obligatorio. Si el sandbox ya tiene rangos activos de documento 22 y 23; si no, se crean con `POST /v2/numbering-ranges`.
-- **Factus Pay:** el sobre `data`, el mínimo de `expiration`, si `amount` va como número o texto, y el formato real de las fechas.
-- **Estados:** qué estado devuelve Factus Pay con un QR vencido o un error del simulador.
+Probado el 4 de noviembre de 2026, con datos inventados. La DIAN validó todos estos documentos:
+
+- **Factura:** a consumidor final, a persona y a empresa, con INC `04` y tasa `8.00`, propina en `allowance_charges`, medio de pago `47` y `cash_rounding_amount` de `-0.01`.
+- **Consumidor final:** documento `13`, número `222222222222`, `names` "Consumidor Final" y organización `2`.
+- **Empresa:** Factus calcula el `dv` si no se envía.
+- **Notas:** anulación, devolución parcial y nota débito. `items.note` no es obligatorio. La respuesta trae en `data`: `number`, `cude`, `is_validated`, `errors`, `links.qr`, `links.public_url` y `bill`.
+
+Lo que hay que tener en cuenta al programar:
+
+- **Cloud Functions:** desde `us-central1`, Factus y Factus Pay responden normalmente; Cloudflare no bloquea esa salida. Solo se comprobó la conexión, sin emitir documentos desde allí.
+- **Token:** dura 3.600 segundos y trae `refresh_token`.
+- **Rangos:** la lista viene en `data.data`, y `document` devuelve el nombre, no el código. En el sandbox están activos el 389 (factura), el 390 y el 1776 (nota crédito) y el 391 (nota débito). Como hay dos de nota crédito, envía siempre `numbering_range_id`.
+- **`errors`:** en facturas es un objeto y en notas un arreglo. Con `is_validated: true` trae notificaciones como `FAJ44b` o `CBF02`, que no bloquean nada. Para detectar un rechazo, busca la palabra "Rechazo" en el texto.
+- **Cuadre:** si `payment_details` no suma el total después del redondeo, responde 422 con el valor esperado.
+- **Referencia repetida:** con los mismos datos devuelve la misma factura. Con un valor distinto puede responder 422, porque primero valida el cuadre.
+- **PDF:** en facturas y notas llega en `data.file_name` y `data.pdf_base_64_encoded`.
+- **Correo:** en el sandbox, `send-email` responde 422 con "El correo no esta autorizado para recibir correos en el entorno sandbox". Por eso, `correo.estado` puede quedar `fallido` aunque la factura esté bien.
+
+## Probado en el sandbox de Factus Pay
+
+Probado el 4 de noviembre de 2026, sin completar ningún pago:
+
+- **Monto:** de 10.000 a 12.000.000. Por fuera responde 422, aunque la documentación diga 1.000 a 12.100.000. Se puede enviar como número o como texto.
+- **Crear:** el recaudo llega en `data`, en `ready`, con `qr` y `breb_key`. Responde 200 si se envía `expiration` y 201 si no.
+- **Vencimiento:** `expiration` acepta cualquier cantidad de segundos, y sin ella dura 24 horas. **Un QR vencido sigue en `ready`:** compara `qr_expires_at` con la hora actual.
+- **Renovar:** repetir la referencia y el monto con otro `expiration` regenera el QR y conserva la `breb_key`.
+- **Referencia repetida:** con el mismo monto devuelve el mismo recaudo. Con otro monto responde 422.
+- **Fechas:** llegan como `04-11-2026 12:00:40 PM`, en hora de Colombia. Hay que convertirlas a UTC.
+- **Errores:** 404 trae `{ status, message, data: null }`, y una validación trae `{ message, errors }`.
+- **Listar:** trae `data`, `links` y `meta`, sin `qr`.
+
+## Por confirmar
+
+- **Correo:** qué direcciones autoriza el sandbox. Sin esto, la demo no puede mostrar el envío con `send-email`.
+- **Rechazo real:** no se forzó a propósito, porque bloquearía el rango de todos los equipos. Se fuerza con un NIT y un `dv` errado, y hay que eliminarlo en seguida.
+- **Sin impuesto:** cómo se envía `ninguno`. La demo usa INC.
+- **Pago:** falta completar uno en el simulador, que solo funciona escaneando el QR con la cámara. Hay que ver qué trae la respuesta en `paid`, y qué estado devuelve cada error: `tx_unknown`, `tx_provider_unavailable`, `tx_timeout` y `tx_risk_control`.
+- **Estado `created`:** aparece en el filtro del panel, pero no en la documentación ni en las pruebas.
 - **Webhook:** si el simulador lo dispara.
-- **Medio de pago:** Factus no tiene código para Bre-B; se usa transferencia (`47`).
 - **Parte igual:** que un contador acepte facturarla como una sola línea de consumo.
-
-Para probar un rechazo se usa un NIT con un `dv` errado. En el sandbox compartido, ese rechazo bloquea el rango para todos: hay que eliminarlo en seguida.
