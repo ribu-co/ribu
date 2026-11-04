@@ -120,6 +120,12 @@ export interface Simulador {
   /** Lo que responderá la DIAN a la siguiente factura o nota que se emita. */
   elegirRespuestaDian(respuesta: 'emitida' | 'en_validacion' | 'rechazada'): void
   respuestaDian(): 'emitida' | 'en_validacion' | 'rechazada'
+  /** Las mesas de la demo, para entrar sin sticker. */
+  mesasDemo(): { token: string; numero: number }[]
+  /** Las cuentas de la demo, para entrar al personal sin crear usuarios. */
+  personalDemo(): { rol: Exclude<Rol, 'cliente'>; correo: string; clave: string }[]
+  /** Borra los datos guardados en el navegador y vuelve al estado inicial. */
+  reiniciar(): void
 }
 
 export interface FuenteDatos extends Lecturas, Sesiones, Ordenes {

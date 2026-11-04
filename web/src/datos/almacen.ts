@@ -17,6 +17,7 @@ export function almacenCompartido(clave = 'ribu:memoria:v1', almacen: Storage = 
   return {
     leer: () => leerJson<EstadoMemoria>(almacen, clave),
     guardar: (estado) => almacen.setItem(clave, JSON.stringify(estado)),
+    borrar: () => almacen.removeItem(clave),
     alCambiarFuera(aviso) {
       const alGuardar = (evento: StorageEvent) => {
         if (evento.key === clave) aviso()
@@ -36,9 +37,4 @@ export function almacenSesionDePestana(clave = 'ribu:sesion', almacen: Storage =
     leer: () => leerJson<Sesion>(almacen, clave),
     guardar: (sesion) => (sesion ? almacen.setItem(clave, JSON.stringify(sesion)) : almacen.removeItem(clave)),
   }
-}
-
-/** Vuelve la demo al estado inicial: mesas libres y la carta completa. */
-export function reiniciarDemo(clave = 'ribu:memoria:v1', almacen: Storage = localStorage) {
-  almacen.removeItem(clave)
 }

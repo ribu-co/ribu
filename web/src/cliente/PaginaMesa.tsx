@@ -19,7 +19,9 @@ import { usarBorrador } from './usarBorrador'
 export function PaginaMesa({ token }: { token: string }) {
   const fuente = usarFuente()
   const sesion = usarSesionDeMesa()
-  const mesa = usarLectura<Mesa | null>((a, b) => fuente.escucharMesa(token, a, b), [fuente, token])
+  // Firestore solo deja leer con sesión: nada se escucha hasta que exista, aunque sea anónima.
+  const uid = sesion.estado === 'listo' ? sesion.valor.uid : null
+  const mesa = usarLectura<Mesa | null>(uid ? (a, b) => fuente.escucharMesa(token, a, b) : null, [fuente, token, uid])
   const valorMesa = mesa.estado === 'listo' ? mesa.valor : null
   const restauranteId = valorMesa?.restauranteId ?? null
   const cuentaId = valorMesa?.cuentaId ?? null
@@ -50,6 +52,24 @@ export function PaginaMesa({ token }: { token: string }) {
     return (
       <Marco>
         <Vacio icono="mesa" titulo="Este link no es de ninguna mesa" texto="Vuelve a escanear el sticker de tu mesa o pídele ayuda al mesero." />
+      </Marco>
+    )
+  }
+  if (restaurante.estado === 'listo' && restaurante.valor === null) {
+    return (
+      <Marco>
+        <Vacio icono="mesa" titulo="Este restaurante ya no está en Ribu" texto="El sticker de la mesa quedó viejo. Pídele al mesero la carta y la cuenta." />
+      </Marco>
+    )
+  }
+  if (sesion.estado === 'listo' && sesion.valor.rol === 'cocina') {
+    return (
+      <Marco>
+        <Vacio icono="mesa" titulo="Entraste como cocina" texto="La cocina no pide desde la mesa. Para pedir aquí, sal y entra como cliente o como mesero.">
+          <Boton variante="secundario" onClick={() => void fuente.salir()}>
+            Salir de la cocina
+          </Boton>
+        </Vacio>
       </Marco>
     )
   }

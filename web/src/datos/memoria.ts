@@ -37,7 +37,7 @@ import type {
   ResumenPago,
   Rol,
 } from '../../../contratos/tipos'
-import { comoErrorDatos, ErrorDatos, type Cancelar, type FuenteDatos, type Sesion } from './fuente'
+import { comoErrorDatos, ErrorDatos, type Cancelar, type FuenteDatos, type Sesion, type Simulador } from './fuente'
 import { semillaDemo, type PersonaPersonal, type Semilla } from './semilla'
 
 export type RespuestaDian = 'emitida' | 'en_validacion' | 'rechazada'
@@ -64,6 +64,7 @@ export interface EstadoMemoria {
 export interface Almacen {
   leer(): EstadoMemoria | null
   guardar(estado: EstadoMemoria): void
+  borrar(): void
   /** Avisa cuando otra pestaña cambió el estado. Devuelve cómo dejar de escuchar. */
   alCambiarFuera(aviso: () => void): () => void
 }
@@ -165,7 +166,7 @@ export function pdfDePrueba(lineas: string[]): Blob {
   return new Blob([pdf], { type: 'application/pdf' })
 }
 
-export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos & { estado(): EstadoMemoria } {
+export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos & { simulador: Simulador; estado(): EstadoMemoria } {
   const ahora = opciones.ahora ?? (() => new Date())
   const programar = opciones.programar ?? ((tarea) => setTimeout(tarea, 1800))
   const dibujarQr = opciones.dibujarQr ?? (async () => null as unknown as string)
@@ -531,7 +532,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     return lineas as LineaNota[]
   }
 
-  const simulador: FuenteDatos['simulador'] = {
+  const simulador: Simulador = {
     pagarCobro(referencia) {
       mutar(() => {
         const nota = estado.notas[referencia]
@@ -579,6 +580,16 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
       })
     },
     respuestaDian: () => estado.respuestaDian,
+    mesasDemo: () =>
+      Object.values(estado.mesas)
+        .sort((a, b) => a.numero - b.numero)
+        .map(({ token, numero }) => ({ token, numero })),
+    personalDemo: () => estado.personal.map(({ rol, correo, clave }) => ({ rol, correo, clave })),
+    reiniciar() {
+      almacen?.borrar()
+      estado = inicial()
+      avisar()
+    },
   }
 
   return {

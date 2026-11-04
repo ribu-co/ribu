@@ -1,15 +1,12 @@
 import { usarFuente } from './datos/contexto'
-import { reiniciarDemo } from './datos/almacen'
-import { semillaDemo } from './datos/semilla'
 import { navegar } from './ruta'
 import { Boton } from './ui/Controles'
 import { Icono } from './ui/Icono'
 
 /** En producción cada mesa llega por su sticker. Esta página solo sirve para recorrer la demo. */
 export function Inicio() {
-  const fuente = usarFuente()
-  const enMemoria = fuente.simulador !== null
-  const mesas = enMemoria ? semillaDemo().mesas : []
+  const { simulador } = usarFuente()
+  const mesas = simulador?.mesasDemo() ?? []
 
   return (
     <main className="pagina pagina--inicio">
@@ -30,7 +27,7 @@ export function Inicio() {
         </p>
       </section>
 
-      {enMemoria && (
+      {simulador && (
         <>
           <h2 className="seccion-titulo">Mesas de la demo</h2>
           <ul className="rejilla-mesas">
@@ -52,7 +49,7 @@ export function Inicio() {
           <Boton
             variante="fantasma"
             onClick={() => {
-              reiniciarDemo()
+              simulador.reiniciar()
               location.reload()
             }}
           >

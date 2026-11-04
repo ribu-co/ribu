@@ -1,25 +1,30 @@
-import QRCode from 'qrcode'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
-import { almacenCompartido, almacenSesionDePestana } from './datos/almacen'
 import { ProveedorDatos } from './datos/contexto'
-import { crearFuenteMemoria } from './datos/memoria'
+import { crearFuente } from './datos/elegir'
 import { ProveedorAvisos } from './ui/Avisos'
+import { ErrorVista } from './ui/Estados'
 import './estilos.css'
 
-const fuente = crearFuenteMemoria({
-  almacen: almacenCompartido(),
-  almacenSesion: almacenSesionDePestana(),
-  dibujarQr: async (texto) => (await QRCode.toDataURL(texto, { margin: 1, width: 480 })).replace(/^data:image\/png;base64,/, ''),
-})
+const raiz = createRoot(document.getElementById('raiz')!)
 
-createRoot(document.getElementById('raiz')!).render(
-  <StrictMode>
-    <ProveedorDatos fuente={fuente}>
-      <ProveedorAvisos>
-        <App />
-      </ProveedorAvisos>
-    </ProveedorDatos>
-  </StrictMode>,
-)
+crearFuente()
+  .then((fuente) =>
+    raiz.render(
+      <StrictMode>
+        <ProveedorDatos fuente={fuente}>
+          <ProveedorAvisos>
+            <App />
+          </ProveedorAvisos>
+        </ProveedorDatos>
+      </StrictMode>,
+    ),
+  )
+  .catch((error: unknown) =>
+    raiz.render(
+      <main className="pagina">
+        <ErrorVista error={error} alReintentar={() => location.reload()} />
+      </main>,
+    ),
+  )

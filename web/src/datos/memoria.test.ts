@@ -22,6 +22,9 @@ function almacenCompartidoDePrueba() {
         guardado = structuredClone(estado)
         for (const aviso of avisos) if (aviso !== propio) aviso()
       },
+      borrar() {
+        guardado = null
+      },
       alCambiarFuera(aviso) {
         propio = aviso
         avisos.add(aviso)

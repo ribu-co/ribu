@@ -12,7 +12,8 @@ test('cada CodigoError dice qué pasó y qué hacer', () => {
   }
   expect(mensajeDeError({ codigo: 'PAGO_EN_CURSO' }).titulo).toMatch(/ya está pagando/)
   expect(mensajeDeError(new Error('Failed to fetch'))).toBe(MENSAJES_ERROR.SERVICIO_NO_DISPONIBLE)
-  expect(MENSAJES_ERROR.MONTO_FUERA_DE_RANGO.accion).toContain('$12.100.000')
+  expect(MENSAJES_ERROR.MONTO_FUERA_DE_RANGO.accion).toContain('$10.000')
+  expect(MENSAJES_ERROR.MONTO_FUERA_DE_RANGO.accion).toContain('$12.000.000')
 })
 
 test('formatos en pesos colombianos', () => {
