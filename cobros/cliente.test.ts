@@ -327,3 +327,137 @@ test('si el recaudo no trae reference_code, se usa la que se pidió', async () =
   const falso = fetchFalso(json({ data: sinReferencia }))
   expect((await cobros(falso.fetch).consultarCobro('pago-9')).referencia).toBe('pago-9')
 })
+
+// leerWebhook
+
+const LLAVE = 'llave-del-webhook-de-mas-de-32-caracteres'
+
+/** Lo que manda Factus Pay cuando el recaudo queda pagado. */
+const CUERPO_WEBHOOK = {
+  data: {
+    reference_code: 'pago-1',
+    amount: 150000.0,
+    status: 'paid',
+    created_at: '2026-09-04T15:20:00Z',
+    qr_expires_at: '2026-09-04T15:40:00Z',
+    collected_at: '2026-09-04T15:22:31Z',
+    payer: { name: 'Juan Pérez', document_type: 'CC', document_number: '1234567890' },
+    qr: null,
+  },
+}
+
+/** No hace ninguna llamada: `leerWebhook` no toca la red. */
+const sinRed = () => cobros(fetchFalso([]).fetch, { llaveWebhook: LLAVE })
+
+test('leerWebhook con la llave buena lee la referencia, el monto, la fecha y el pagador', () => {
+  expect(sinRed().leerWebhook(LLAVE, CUERPO_WEBHOOK)).toEqual({
+    referencia: 'pago-1',
+    monto: 150_000,
+    recaudadoEn: '2026-09-04T15:22:31.000Z',
+    pagador: { nombre: 'Juan Pérez', tipoDocumento: 'CC', documento: '1234567890' },
+  })
+})
+
+test.each([
+  ['null', null],
+  ['vacía', ''],
+  ['otra llave del mismo largo', 'x'.repeat(LLAVE.length)],
+  ['más corta', LLAVE.slice(0, -1)],
+  ['más larga', `${LLAVE}x`],
+  ['con un espacio al final', `${LLAVE} `],
+  ['en mayúsculas', LLAVE.toUpperCase()],
+])('una llave %s lanza no_autorizado', (_caso, clave) => {
+  expect(() => sinRed().leerWebhook(clave, CUERPO_WEBHOOK)).toThrowError(
+    expect.objectContaining({
+      name: 'ErrorIntegracion',
+      servicio: 'factus_pay',
+      tipo: 'no_autorizado',
+      status: 401,
+    }),
+  )
+})
+
+test('un error de llave no se reintenta: hay que responder 401', () => {
+  const error = (() => {
+    try {
+      sinRed().leerWebhook('otra', CUERPO_WEBHOOK)
+      return null
+    } catch (e: unknown) {
+      return e as ErrorIntegracion
+    }
+  })()
+  expect(error?.reintentable).toBe(false)
+})
+
+test('si la llave del webhook quedó sin configurar, no autoriza nada', () => {
+  const servicio = cobros(fetchFalso([]).fetch, { llaveWebhook: '' })
+  for (const clave of [null, '', 'cualquiera']) {
+    expect(() => servicio.leerWebhook(clave, CUERPO_WEBHOOK)).toThrowError(
+      expect.objectContaining({ tipo: 'no_autorizado' }),
+    )
+  }
+})
+
+test('la llave se valida antes de mirar el cuerpo', () => {
+  expect(() => sinRed().leerWebhook('otra', null)).toThrowError(
+    expect.objectContaining({ tipo: 'no_autorizado' }),
+  )
+})
+
+test('payer puede no venir', () => {
+  const { payer: _, ...sinPagador } = CUERPO_WEBHOOK.data
+  expect(sinRed().leerWebhook(LLAVE, { data: sinPagador }).pagador).toBeNull()
+})
+
+test.each([
+  ['payer en null', null],
+  ['payer vacío', {}],
+  ['payer sin nombre ni documento', { document_type: 'CC' }],
+])('%s queda en null', (_caso, payer) => {
+  expect(sinRed().leerWebhook(LLAVE, { data: { ...CUERPO_WEBHOOK.data, payer } }).pagador).toBeNull()
+})
+
+test('un payer a medias se lee con lo que haya', () => {
+  const payer = { name: 'Sin Documento' }
+  expect(sinRed().leerWebhook(LLAVE, { data: { ...CUERPO_WEBHOOK.data, payer } }).pagador).toEqual({
+    nombre: 'Sin Documento',
+    tipoDocumento: '',
+    documento: '',
+  })
+})
+
+test('el webhook sin collected_at deja recaudadoEn en null', () => {
+  const { collected_at: _, ...sinFecha } = CUERPO_WEBHOOK.data
+  expect(sinRed().leerWebhook(LLAVE, { data: sinFecha }).recaudadoEn).toBeNull()
+})
+
+test('un collected_at con el formato de Factus también queda en ISO UTC', () => {
+  const data = { ...CUERPO_WEBHOOK.data, collected_at: '28-10-2026 08:03:04 PM' }
+  expect(sinRed().leerWebhook(LLAVE, { data }).recaudadoEn).toBe('2026-10-29T01:03:04.000Z')
+})
+
+test.each([
+  ['sin data', {}],
+  ['con data en null', { data: null }],
+  ['con data que no es objeto', { data: 'pago-1' }],
+  ['sin reference_code', { data: { amount: 150000 } }],
+  ['con reference_code que no es texto', { data: { reference_code: 7, amount: 150000 } }],
+  ['sin amount', { data: { reference_code: 'pago-1' } }],
+  ['con amount que no es número', { data: { reference_code: 'pago-1', amount: 'mucho' } }],
+  ['en null', null],
+])('un cuerpo %s lanza validacion', (_caso, cuerpo) => {
+  expect(() => sinRed().leerWebhook(LLAVE, cuerpo)).toThrowError(
+    expect.objectContaining({ name: 'ErrorIntegracion', tipo: 'validacion', status: 422 }),
+  )
+})
+
+test('el monto del webhook llega como texto y queda en pesos enteros', () => {
+  const data = { ...CUERPO_WEBHOOK.data, amount: '150000.00' }
+  expect(sinRed().leerWebhook(LLAVE, { data }).monto).toBe(150_000)
+})
+
+test('leerWebhook no hace ninguna llamada a Factus Pay', () => {
+  const falso = fetchFalso([])
+  cobros(falso.fetch, { llaveWebhook: LLAVE }).leerWebhook(LLAVE, CUERPO_WEBHOOK)
+  expect(falso.llamadas).toHaveLength(0)
+})
