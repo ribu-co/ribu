@@ -106,7 +106,7 @@ Es el flujo que exige el reto.
 **Esperado:**
 
 - Solo uno obtiene el cobro. El otro recibe `PAGO_EN_CURSO`, con un mensaje claro.
-- Hay un solo recaudo y una sola factura.
+- Antes de cancelar, hay un solo recaudo activo y todavía ninguna factura sin pago. Después de cancelar y crear el segundo, quedan dos referencias en el historial; solo el pago confirmado genera su factura, salvo la incidencia de pago duplicado que no se factura.
 - Al cancelar, lo que cubría queda libre y el segundo puede pagar.
 
 **Si hay tiempo:** después de cancelar y de que el segundo pague, paga también el primer QR en el simulador. Debe quedar `pago_duplicado`, sin factura, y el personal debe verlo para devolver el dinero por fuera.
@@ -157,8 +157,8 @@ Es el flujo que exige el reto.
 ## 9. Efectivo y tarjeta
 
 1. Con un cliente, trata de registrar un pago en efectivo.
-2. Con el mesero, registra en efectivo una cuenta.
-3. Con el mesero, registra otra cuenta con tarjeta débito y otra con tarjeta crédito.
+2. Con el mesero, registra en efectivo una cuenta ficticia, sin recibir ni mover dinero real.
+3. Con el mesero, registra otra cuenta ficticia con tarjeta débito y otra con tarjeta crédito, sin operar un datáfono real.
 
 **Esperado:**
 
@@ -189,7 +189,7 @@ Falta confirmar los códigos de efectivo y tarjeta: ver `docs/explicacion-integr
 1. Con el mesero, trata de crear una nota sobre una factura emitida.
 2. Con el admin, crea una rebaja parcial.
 3. Con el admin, trata de acreditar más de lo que queda.
-4. Con el admin, anula lo que quede y marca la devolución como hecha.
+4. Con el admin, anula lo que quede y registra una devolución ficticia como hecha. No devuelvas dinero real en esta prueba.
 
 **Esperado:**
 
@@ -231,3 +231,23 @@ Falta confirmar los códigos de efectivo y tarjeta: ver `docs/explicacion-integr
 - **Redondeo:** paga 1 limonada de coco y 3 limonadas por separado. El total en Factus debe dar $12.000 y $36.000. Antes de hacerlo, avisa a Elias.
 - **QR vencido:** espera los 600 segundos. El pago queda `vencido` y lo que cubría queda libre.
 - **Celular:** repite el caso 4 en iPhone y en Android, con pantalla pequeña.
+
+## Recorridos adicionales del MVP
+
+### 14. Pagos simultáneos de productos distintos
+
+Con la cuenta confirmada de $91.800 y propina 0, A paga una mojarra y un jugo ($40.500); B paga la otra mojarra, el otro jugo y el patacón ($51.300). Generar ambos cobros antes de simular los pagos y pagarlos en orden inverso. Esperado: dos referencias diferentes, dos facturas, suma de $91.800 y saldo 0, sin unidades cubiertas dos veces. Estado: sin ejecutar.
+
+### 15. Webhook, reintentos y demora DIAN
+
+Con Integración y Facturación, reproducir primero en mocks: webhook repetido, llave incorrecta, DIAN demorada, 409 y 429. No publicar la llave. Esperado: consultar referencia, importe y `paid` antes de facturar; procesar una sola vez; rechazar el webhook falso; conservar referencia en cada reintento. Una demora queda `en_validacion` y nunca se elimina; 409 y 429 quedan `en_proceso`, sin cobrar de nuevo. Identificar esta evidencia como mock, no como prueba de las APIs reales. Estado: sin ejecutar.
+
+### 16. Privacidad al cambiar de comensal
+
+Después de liberar la mesa, abrir el mismo enlace con una sesión nueva y tratar de leer una factura de la sesión anterior. Esperado: no ve la cuenta anterior ni la factura privada; solo su creador y el personal autorizado pueden leerla. Estado: sin ejecutar.
+
+## Evidencia y cierre de fallos
+
+Por recorrido registrar fecha, ejecutor, URL, commit desplegado, entorno, importe, referencias de prueba, resultado observado y evidencia sin secretos. Usar pasa, falla o bloqueado solo después de ejecutar; antes, sin ejecutar. Las pruebas unitarias del repo no acreditan estos recorridos.
+
+Reportar un fallo reproducible por issue o en el PR responsable, con pasos exactos, esperado, observado, impacto y evidencia. Anotar su enlace; no decir que se reportó sin enlace. Reensayar sobre el commit que lo corrige. Los casos 14 a 16 también están sin ejecutar: no hay fallos observados todavía que comunicar como hechos.
