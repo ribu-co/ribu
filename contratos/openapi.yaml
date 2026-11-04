@@ -1,0 +1,901 @@
+openapi: 3.0.3
+info:
+  title: API de Ribu
+  version: 0.1.0
+  description: >-
+    Órdenes que la web le da al backend. Las lecturas van por Firestore: ver README.md.
+    `x-roles` dice quién puede llamar cada operación, según el token de Firebase.
+    `x-errores` lista los códigos propios de cada operación; cualquiera puede responder además
+    CUERPO_INVALIDO, NO_AUTORIZADO, SIN_PERMISO o SERVICIO_NO_DISPONIBLE.
+    El estado HTTP de cada código está en ESTADO_HTTP_POR_ERROR, en reglas.ts.
+security:
+  - firebase: []
+paths:
+  /api/mesas/{token}/lineas:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    post:
+      operationId: agregarLineas
+      summary: Agrega productos al pedido de la mesa
+      description: >-
+        Si la mesa está libre, abre su cuenta. Lo que pide el cliente queda `pendiente` hasta que
+        el mesero lo confirme. Lo que pide el personal queda `confirmada` y va directo a cocina.
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO, PRODUCTO_NO_DISPONIBLE, STOCK_INSUFICIENTE]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudLineas' }
+      responses:
+        '201': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/lineas/confirmar:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    post:
+      operationId: confirmarLineas
+      summary: El mesero confirma lo que pidió el cliente y lo envía a cocina
+      description: Baja el `stock` de cada producto que lleva conteo.
+      x-roles: [mesero, admin]
+      x-errores: [NO_ENCONTRADO, STOCK_INSUFICIENTE, TRANSICION_INVALIDA]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudIdsLineas' }
+      responses:
+        '200': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/lineas/rechazar:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    post:
+      operationId: rechazarLineas
+      summary: El mesero rechaza lo que pidió el cliente
+      x-roles: [mesero, admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudMotivoLineas' }
+      responses:
+        '200': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/lineas/anular:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    post:
+      operationId: anularLineas
+      summary: El mesero anula algo ya confirmado que nadie ha pagado
+      description: Devuelve las unidades al `stock`.
+      x-roles: [mesero, admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA, LINEA_CON_PAGO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudMotivoLineas' }
+      responses:
+        '200': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/lineas/{lineaId}/estado:
+    parameters:
+      - $ref: '#/components/parameters/token'
+      - $ref: '#/components/parameters/lineaId'
+    post:
+      operationId: avanzarLinea
+      summary: La cocina o el mesero avanzan una línea
+      x-roles: [cocina, mesero, admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudEstadoLinea' }
+      responses:
+        '200': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/division:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    put:
+      operationId: dividirEnPartesIguales
+      summary: Divide lo que falta por pagar en partes iguales
+      description: Se puede cambiar mientras ninguna parte tenga un cobro activo o un pago hecho.
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO, NADA_POR_PAGAR, DIVISION_ACTIVA, PAGO_EN_CURSO, MONTO_FUERA_DE_RANGO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudDivision' }
+      responses:
+        '200': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: quitarDivision
+      summary: Quita la división mientras ninguna parte tenga un cobro activo o un pago hecho
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO, DIVISION_ACTIVA]
+      responses:
+        '200': { $ref: '#/components/responses/Cuenta' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/pagos:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    post:
+      operationId: crearPago
+      summary: Crea un pago por toda la cuenta o por una parte
+      description: >-
+        Solo cubre líneas confirmadas y las congela. Con `factus_pay` crea el cobro con QR y llave.
+        Con `efectivo` o tarjeta, el personal lo registra como `pagado` y se emite la factura.
+        Si otra persona ya está cobrando lo mismo, responde PAGO_EN_CURSO.
+      x-roles: [cliente, mesero, admin]
+      x-errores:
+        - NO_ENCONTRADO
+        - NADA_POR_PAGAR
+        - CANTIDAD_NO_DISPONIBLE
+        - PARTE_NO_DISPONIBLE
+        - PAGO_EN_CURSO
+        - MONTO_FUERA_DE_RANGO
+        - PROPINA_INVALIDA
+        - COMPRADOR_INVALIDO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudPago' }
+      responses:
+        '201': { $ref: '#/components/responses/Pago' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/pagos/{pagoId}/verificar:
+    parameters:
+      - $ref: '#/components/parameters/token'
+      - $ref: '#/components/parameters/pagoId'
+    post:
+      operationId: verificarPago
+      summary: Consulta el cobro en Factus Pay, como respaldo del webhook
+      description: El backend no consulta el mismo pago más de una vez cada CONSULTA_COBRO_SEGUNDOS.
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO]
+      responses:
+        '200': { $ref: '#/components/responses/Pago' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/pagos/{pagoId}/cancelar:
+    parameters:
+      - $ref: '#/components/parameters/token'
+      - $ref: '#/components/parameters/pagoId'
+    post:
+      operationId: cancelarPago
+      summary: Libera lo que cubre un pago que aún no entra
+      description: >-
+        Solo quien lo creó o el personal. Factus Pay no documenta cómo cancelar un recaudo, así que
+        el QR puede seguir vivo hasta vencer. Si después llega `paid` y las líneas siguen libres, el
+        pago vale. Si ya las cubrió otro pago, queda con la incidencia `pago_duplicado`, sin factura.
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA]
+      responses:
+        '200': { $ref: '#/components/responses/Pago' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/pagos/{pagoId}/factura/pdf:
+    parameters:
+      - $ref: '#/components/parameters/token'
+      - $ref: '#/components/parameters/pagoId'
+    get:
+      operationId: descargarFacturaPdf
+      summary: Descarga el PDF de la factura
+      description: Solo quien creó el pago o el personal.
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO, FACTURA_NO_DISPONIBLE]
+      responses:
+        '200':
+          description: El PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/pagos/{pagoId}/factura/correo:
+    parameters:
+      - $ref: '#/components/parameters/token'
+      - $ref: '#/components/parameters/pagoId'
+    post:
+      operationId: enviarFacturaPorCorreo
+      summary: Envía o reenvía la factura a un correo
+      description: >-
+        Solo quien creó el pago o el personal. El backend también la envía solo al quedar `emitida`
+        si el comprador dio un correo.
+      x-roles: [cliente, mesero, admin]
+      x-errores: [NO_ENCONTRADO, FACTURA_NO_DISPONIBLE]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudCorreo' }
+      responses:
+        '200': { $ref: '#/components/responses/Factura' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/pagos/{pagoId}/factura/reintentar:
+    parameters:
+      - $ref: '#/components/parameters/token'
+      - $ref: '#/components/parameters/pagoId'
+    post:
+      operationId: reintentarFactura
+      summary: El personal corrige una factura rechazada y la vuelve a emitir
+      x-roles: [mesero, admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA, COMPRADOR_INVALIDO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudReintentoFactura' }
+      responses:
+        '200': { $ref: '#/components/responses/Factura' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/mesas/{token}/liberar:
+    parameters:
+      - $ref: '#/components/parameters/token'
+    post:
+      operationId: liberarMesa
+      summary: El mesero marca la mesa como libre
+      description: >-
+        Cierra la cuenta. El link deja de mostrar ese pedido y queda listo para el siguiente cliente.
+        Las facturas en proceso continúan: no bloquean la mesa.
+      x-roles: [mesero, admin]
+      x-errores: [NO_ENCONTRADO, MESA_CON_SALDO]
+      responses:
+        '200': { $ref: '#/components/responses/Mesa' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/productos:
+    post:
+      operationId: crearProducto
+      summary: Agrega un producto a la carta
+      x-roles: [admin]
+      x-errores: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NuevoProducto' }
+      responses:
+        '201': { $ref: '#/components/responses/Producto' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/productos/{productoId}:
+    parameters:
+      - $ref: '#/components/parameters/productoId'
+    patch:
+      operationId: actualizarProducto
+      summary: Cambia un producto
+      description: El mesero y la cocina solo pueden cambiar `disponible`, que es el botón de "agotado".
+      x-roles: [mesero, cocina, admin]
+      x-errores: [NO_ENCONTRADO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CambiosProducto' }
+      responses:
+        '200': { $ref: '#/components/responses/Producto' }
+        default: { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: borrarProducto
+      summary: Quita un producto de la carta
+      description: Las cuentas no cambian, porque cada línea copia el nombre y el precio.
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO]
+      responses:
+        '204': { description: Producto borrado }
+        default: { $ref: '#/components/responses/Error' }
+  /api/pagos/{pagoId}/notas:
+    parameters:
+      - $ref: '#/components/parameters/pagoId'
+    post:
+      operationId: crearNota
+      summary: Corrige una factura emitida con una nota crédito o débito
+      description: >-
+        Una nota crédito se emite de una vez y deja la devolución `pendiente`, porque Factus Pay no
+        tiene reversos. Una nota débito con `factus_pay` crea un cobro y se emite cuando entra el
+        pago. Con efectivo o tarjeta se emite de una vez.
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO, FACTURA_NO_DISPONIBLE, NOTA_INVALIDA, NOTA_EXCEDE_FACTURA, MONTO_FUERA_DE_RANGO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudNotaNueva' }
+      responses:
+        '201': { $ref: '#/components/responses/Nota' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/notas/{notaId}/verificar:
+    parameters:
+      - $ref: '#/components/parameters/notaId'
+    post:
+      operationId: verificarNota
+      summary: Consulta el cobro de una nota débito en Factus Pay, como respaldo del webhook
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO]
+      responses:
+        '200': { $ref: '#/components/responses/Nota' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/notas/{notaId}/reintentar:
+    parameters:
+      - $ref: '#/components/parameters/notaId'
+    post:
+      operationId: reintentarNota
+      summary: Corrige una nota rechazada y la vuelve a emitir
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA, COMPRADOR_INVALIDO]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudReintentoFactura' }
+      responses:
+        '200': { $ref: '#/components/responses/Nota' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/notas/{notaId}/devolucion:
+    parameters:
+      - $ref: '#/components/parameters/notaId'
+    post:
+      operationId: marcarDevolucionHecha
+      summary: Registra que el restaurante ya devolvió el dinero de una nota crédito
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO, TRANSICION_INVALIDA]
+      responses:
+        '200': { $ref: '#/components/responses/Nota' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/notas/{notaId}/correo:
+    parameters:
+      - $ref: '#/components/parameters/notaId'
+    post:
+      operationId: enviarNotaPorCorreo
+      summary: Envía o reenvía la nota a un correo
+      description: El backend también la envía solo al quedar `emitida` si el comprador dio un correo.
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO, FACTURA_NO_DISPONIBLE]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudCorreo' }
+      responses:
+        '200': { $ref: '#/components/responses/Nota' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/notas/{notaId}/pdf:
+    parameters:
+      - $ref: '#/components/parameters/notaId'
+    get:
+      operationId: descargarNotaPdf
+      summary: Descarga el PDF de la nota
+      x-roles: [admin]
+      x-errores: [NO_ENCONTRADO, FACTURA_NO_DISPONIBLE]
+      responses:
+        '200':
+          description: El PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        default: { $ref: '#/components/responses/Error' }
+  /api/webhooks/factus-pay/{restauranteId}:
+    parameters:
+      - $ref: '#/components/parameters/restauranteId'
+    post:
+      operationId: recibirWebhookFactusPay
+      summary: Factus Pay avisa que un recaudo quedó pagado
+      description: >-
+        Lo lee ServicioCobros.leerWebhook. La referencia es la de un pago o la de una nota débito.
+        Antes de marcarlo se confirma con ServicioCobros.consultarCobro. Puede repetirse: el documento
+        se emite una sola vez. Debe responder en menos de 10 segundos o Factus Pay reintenta.
+      x-roles: []
+      x-errores: [NO_AUTORIZADO]
+      security:
+        - claveWebhook: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: 'Formato de Factus Pay, con el recaudo en `data`.' }
+      responses:
+        '200': { description: Recibido }
+        default: { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    firebase:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: ID token de Firebase. El cliente entra de forma anónima y el personal con login.
+    claveWebhook:
+      type: apiKey
+      in: query
+      name: key
+      description: Llave que el restaurante registra en el panel de Factus Pay.
+  parameters:
+    token: { name: token, in: path, required: true, schema: { type: string }, description: El token del sticker de la mesa. }
+    lineaId: { name: lineaId, in: path, required: true, schema: { type: string } }
+    pagoId: { name: pagoId, in: path, required: true, schema: { type: string } }
+    notaId: { name: notaId, in: path, required: true, schema: { type: string } }
+    productoId: { name: productoId, in: path, required: true, schema: { type: string } }
+    restauranteId: { name: restauranteId, in: path, required: true, schema: { type: string } }
+  responses:
+    Cuenta:
+      description: La cuenta actualizada
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Cuenta' }
+    Pago:
+      description: El pago
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Pago' }
+    Factura:
+      description: La factura
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Factura' }
+    Nota:
+      description: La nota
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Nota' }
+    Mesa:
+      description: La mesa
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Mesa' }
+    Producto:
+      description: El producto
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Producto' }
+    Error:
+      description: Error con un código de CODIGOS_ERROR
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorApi' }
+  schemas:
+    TipoImpuesto: { type: string, enum: [INC, IVA, ninguno] }
+    EstadoMesa: { type: string, enum: [libre, ocupada] }
+    EstadoLinea: { type: string, enum: [pendiente, confirmada, en_preparacion, lista, entregada, rechazada, anulada] }
+    OrigenLinea: { type: string, enum: [cliente, personal] }
+    EstadoCuenta: { type: string, enum: [abierta, pagada, cerrada] }
+    MedioPago: { type: string, enum: [factus_pay, efectivo, tarjeta_debito, tarjeta_credito] }
+    EstadoPago: { type: string, enum: [esperando_pago, pagado, vencido, cancelado, fallido] }
+    IncidenciaPago: { type: string, enum: [pago_duplicado] }
+    EstadoCobro: { type: string, enum: [started, ready, paid, failed, rejected, desconocido] }
+    TipoDocumento: { type: string, enum: [CC, CE, NIT, PASAPORTE, PPT] }
+    EstadoFactura: { type: string, enum: [sin_emitir, en_proceso, en_validacion, emitida, rechazada] }
+    EstadoCorreo: { type: string, enum: [sin_correo, pendiente, enviado, fallido] }
+    TipoNota: { type: string, enum: [credito, debito] }
+    ConceptoNotaCredito: { type: string, enum: [devolucion_parcial, anulacion, rebaja, ajuste_precio] }
+    ConceptoNotaDebito: { type: string, enum: [intereses, gastos_por_cobrar, cambio_valor, otros] }
+    EstadoDevolucion: { type: string, enum: [no_aplica, pendiente, hecha] }
+    CodigoError: { type: string, enum: [CUERPO_INVALIDO, NO_AUTORIZADO, SIN_PERMISO, NO_ENCONTRADO, PRODUCTO_NO_DISPONIBLE, STOCK_INSUFICIENTE, TRANSICION_INVALIDA, LINEA_CON_PAGO, NADA_POR_PAGAR, CANTIDAD_NO_DISPONIBLE, PARTE_NO_DISPONIBLE, DIVISION_ACTIVA, PAGO_EN_CURSO, MONTO_FUERA_DE_RANGO, PROPINA_INVALIDA, COMPRADOR_INVALIDO, MESA_CON_SALDO, FACTURA_NO_DISPONIBLE, NOTA_INVALIDA, NOTA_EXCEDE_FACTURA, SERVICIO_NO_DISPONIBLE] }
+    Impuesto:
+      type: object
+      required: [tipo, porcentaje]
+      properties:
+        tipo: { $ref: '#/components/schemas/TipoImpuesto' }
+        porcentaje: { type: number }
+    Producto:
+      type: object
+      required: [id, restauranteId, nombre, descripcion, categoria, precio, stock, disponible, imagenUrl]
+      properties:
+        id: { type: string }
+        restauranteId: { type: string }
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        categoria: { type: string }
+        precio: { type: integer, description: 'Precio de carta, con impuesto incluido' }
+        stock: { type: integer, nullable: true, description: null si no se lleva conteo }
+        disponible: { type: boolean }
+        imagenUrl: { type: string, nullable: true }
+    NuevoProducto:
+      type: object
+      required: [nombre, descripcion, categoria, precio, stock, disponible, imagenUrl]
+      properties:
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        categoria: { type: string }
+        precio: { type: integer }
+        stock: { type: integer, nullable: true }
+        disponible: { type: boolean }
+        imagenUrl: { type: string, nullable: true }
+    CambiosProducto:
+      type: object
+      properties:
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        categoria: { type: string }
+        precio: { type: integer }
+        stock: { type: integer, nullable: true }
+        disponible: { type: boolean }
+        imagenUrl: { type: string, nullable: true }
+    Mesa:
+      type: object
+      required: [token, restauranteId, numero, estado, cuentaId]
+      properties:
+        token: { type: string }
+        restauranteId: { type: string }
+        numero: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoMesa' }
+        cuentaId: { type: string, nullable: true }
+    LineaPedido:
+      type: object
+      required: [id, productoId, nombre, precio, cantidad, nota, ronda, estado, origen, motivo, cantidadCubierta, creadaEn]
+      properties:
+        id: { type: string }
+        productoId: { type: string }
+        nombre: { type: string }
+        precio: { type: integer }
+        cantidad: { type: integer, minimum: 1 }
+        nota: { type: string, nullable: true }
+        ronda: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoLinea' }
+        origen: { $ref: '#/components/schemas/OrigenLinea' }
+        motivo: { type: string, nullable: true }
+        cantidadCubierta: { type: integer }
+        creadaEn: { type: string, format: date-time }
+    DivisionPartesIguales:
+      type: object
+      required: [partes, montos]
+      properties:
+        partes: { type: integer }
+        montos:
+          type: array
+          items: { type: integer }
+    ResumenPago:
+      type: object
+      required: [id, numero, parte, subtotal, total, medio, estado, estadoFactura, incidencia, creadoPor]
+      properties:
+        id: { type: string, maxLength: 100, description: También es el reference_code del recaudo y de la factura }
+        numero: { type: integer }
+        parte: { type: integer, nullable: true }
+        subtotal: { type: integer }
+        total: { type: integer }
+        medio: { $ref: '#/components/schemas/MedioPago' }
+        estado: { $ref: '#/components/schemas/EstadoPago' }
+        estadoFactura: { $ref: '#/components/schemas/EstadoFactura' }
+        incidencia: { allOf: [{ $ref: '#/components/schemas/IncidenciaPago' }], nullable: true }
+        creadoPor: { type: string }
+    Cuenta:
+      type: object
+      required: [id, restauranteId, mesaToken, numeroMesa, estado, lineas, division, pagos, consumo, pagado, enCobro, porPagar, abiertaEn, cerradaEn]
+      properties:
+        id: { type: string }
+        restauranteId: { type: string }
+        mesaToken: { type: string }
+        numeroMesa: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoCuenta' }
+        lineas:
+          type: array
+          items: { $ref: '#/components/schemas/LineaPedido' }
+        division: { allOf: [{ $ref: '#/components/schemas/DivisionPartesIguales' }], nullable: true }
+        pagos:
+          type: array
+          items: { $ref: '#/components/schemas/ResumenPago' }
+        consumo: { type: integer }
+        pagado: { type: integer }
+        enCobro: { type: integer }
+        porPagar: { type: integer }
+        abiertaEn: { type: string, format: date-time }
+        cerradaEn: { type: string, format: date-time, nullable: true }
+    Cobro:
+      type: object
+      required: [referencia, monto, estado, qrBase64, llaveBreB, qrExpiraEn, recaudadoEn]
+      properties:
+        referencia: { type: string }
+        monto: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoCobro' }
+        qrBase64: { type: string, nullable: true, description: 'PNG en base64, sin el prefijo data:' }
+        llaveBreB: { type: string, nullable: true }
+        qrExpiraEn: { type: string, format: date-time, nullable: true }
+        recaudadoEn: { type: string, format: date-time, nullable: true }
+    DestinoSaldo:
+      type: object
+      required: [tipo]
+      properties:
+        tipo: { type: string, enum: [saldo] }
+    DestinoProductos:
+      type: object
+      required: [tipo, items]
+      properties:
+        tipo: { type: string, enum: [productos] }
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [lineaId, cantidad]
+            properties:
+              lineaId: { type: string }
+              cantidad: { type: integer, minimum: 1 }
+    DestinoParteIgual:
+      type: object
+      required: [tipo, parte]
+      properties:
+        tipo: { type: string, enum: [parte_igual] }
+        parte: { type: integer, minimum: 1 }
+    DestinoPago:
+      oneOf:
+        - $ref: '#/components/schemas/DestinoSaldo'
+        - $ref: '#/components/schemas/DestinoProductos'
+        - $ref: '#/components/schemas/DestinoParteIgual'
+      discriminator:
+        propertyName: tipo
+        mapping:
+          saldo: '#/components/schemas/DestinoSaldo'
+          productos: '#/components/schemas/DestinoProductos'
+          parte_igual: '#/components/schemas/DestinoParteIgual'
+    ItemPago:
+      type: object
+      required: [lineaId, nombre, cantidad, precio]
+      properties:
+        lineaId: { type: string, nullable: true }
+        nombre: { type: string }
+        cantidad: { type: integer }
+        precio: { type: integer }
+    Pago:
+      allOf:
+        - { $ref: '#/components/schemas/ResumenPago' }
+        - type: object
+          required: [restauranteId, cuentaId, mesaToken, destino, items, impuesto, baseSinImpuesto, propinaPorcentaje, propina, cobro, creadoEn, pagadoEn]
+          properties:
+            restauranteId: { type: string }
+            cuentaId: { type: string }
+            mesaToken: { type: string }
+            destino: { $ref: '#/components/schemas/DestinoPago' }
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ItemPago' }
+            impuesto: { $ref: '#/components/schemas/Impuesto' }
+            baseSinImpuesto: { type: number }
+            propinaPorcentaje: { type: integer, minimum: 0, maximum: 100 }
+            propina: { type: integer }
+            cobro: { allOf: [{ $ref: '#/components/schemas/Cobro' }], nullable: true }
+            creadoEn: { type: string, format: date-time }
+            pagadoEn: { type: string, format: date-time, nullable: true }
+    CompradorConsumidorFinal:
+      type: object
+      required: [tipo, correo]
+      properties:
+        tipo: { type: string, enum: [consumidor_final] }
+        correo: { type: string, nullable: true }
+    CompradorPersona:
+      type: object
+      required: [tipo, tipoDocumento, documento, nombre, correo]
+      properties:
+        tipo: { type: string, enum: [persona] }
+        tipoDocumento: { $ref: '#/components/schemas/TipoDocumento' }
+        documento: { type: string }
+        nombre: { type: string }
+        correo: { type: string }
+    CompradorEmpresa:
+      type: object
+      required: [tipo, nit, razonSocial, correo]
+      properties:
+        tipo: { type: string, enum: [empresa] }
+        nit: { type: string, description: Sin dígito de verificación }
+        razonSocial: { type: string }
+        correo: { type: string }
+    Comprador:
+      oneOf:
+        - $ref: '#/components/schemas/CompradorConsumidorFinal'
+        - $ref: '#/components/schemas/CompradorPersona'
+        - $ref: '#/components/schemas/CompradorEmpresa'
+      discriminator:
+        propertyName: tipo
+        mapping:
+          consumidor_final: '#/components/schemas/CompradorConsumidorFinal'
+          persona: '#/components/schemas/CompradorPersona'
+          empresa: '#/components/schemas/CompradorEmpresa'
+    EnvioCorreo:
+      type: object
+      required: [estado, destino, ultimoError, enviadoEn]
+      properties:
+        estado: { $ref: '#/components/schemas/EstadoCorreo' }
+        destino: { type: string, nullable: true }
+        ultimoError: { type: string, nullable: true }
+        enviadoEn: { type: string, format: date-time, nullable: true }
+    DatosFactura:
+      type: object
+      required: [numero, cufe, qrUrl, urlPublica]
+      properties:
+        numero: { type: string }
+        cufe: { type: string }
+        qrUrl: { type: string }
+        urlPublica: { type: string }
+    PagadorCobro:
+      type: object
+      required: [nombre, tipoDocumento, documento]
+      properties:
+        nombre: { type: string }
+        tipoDocumento: { type: string }
+        documento: { type: string }
+    Factura:
+      type: object
+      required: [pagoId, restauranteId, pagadorUid, estado, comprador, datos, intentos, ultimoError, correo, pagador, notas, emitidaEn]
+      properties:
+        pagoId: { type: string }
+        restauranteId: { type: string }
+        pagadorUid: { type: string }
+        estado: { $ref: '#/components/schemas/EstadoFactura' }
+        comprador: { $ref: '#/components/schemas/Comprador' }
+        datos: { allOf: [{ $ref: '#/components/schemas/DatosFactura' }], nullable: true }
+        intentos: { type: integer }
+        ultimoError: { type: string, nullable: true }
+        correo: { $ref: '#/components/schemas/EnvioCorreo' }
+        pagador: { allOf: [{ $ref: '#/components/schemas/PagadorCobro' }], nullable: true }
+        notas:
+          type: array
+          items: { $ref: '#/components/schemas/ResumenNota' }
+        emitidaEn: { type: string, format: date-time, nullable: true }
+    DatosNota:
+      type: object
+      required: [numero, cude, qrUrl, urlPublica]
+      properties:
+        numero: { type: string }
+        cude: { type: string }
+        qrUrl: { type: string }
+        urlPublica: { type: string }
+    LineaFactura:
+      type: object
+      required: [codigo, descripcion, cantidad, precioSinImpuesto]
+      properties:
+        codigo: { type: string }
+        descripcion: { type: string }
+        cantidad: { type: number }
+        precioSinImpuesto: { type: number }
+    PropinaFactura:
+      type: object
+      required: [base, valor]
+      properties:
+        base: { type: number }
+        valor: { type: integer }
+    ResumenNota:
+      type: object
+      required: [id, tipo, numero, total, estado]
+      properties:
+        id: { type: string, maxLength: 100, description: 'También es su reference_code en Factus y, si se cobra, en Factus Pay' }
+        tipo: { $ref: '#/components/schemas/TipoNota' }
+        numero: { type: string, nullable: true }
+        total: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoFactura' }
+    Nota:
+      allOf:
+        - { $ref: '#/components/schemas/ResumenNota' }
+        - type: object
+          required: [concepto, motivo, restauranteId, pagoId, numeroFactura, comprador, lineas, impuesto, propina, medio, cobro, devolucion, datos, intentos, ultimoError, correo, creadoPor, creadaEn, emitidaEn]
+          properties:
+            concepto:
+              oneOf:
+                - $ref: '#/components/schemas/ConceptoNotaCredito'
+                - $ref: '#/components/schemas/ConceptoNotaDebito'
+            motivo: { type: string }
+            restauranteId: { type: string }
+            pagoId: { type: string }
+            numeroFactura: { type: string }
+            comprador: { $ref: '#/components/schemas/Comprador' }
+            lineas:
+              type: array
+              items: { $ref: '#/components/schemas/LineaFactura' }
+            impuesto: { $ref: '#/components/schemas/Impuesto' }
+            propina: { allOf: [{ $ref: '#/components/schemas/PropinaFactura' }], nullable: true }
+            medio: { $ref: '#/components/schemas/MedioPago' }
+            cobro: { allOf: [{ $ref: '#/components/schemas/Cobro' }], nullable: true }
+            devolucion: { $ref: '#/components/schemas/EstadoDevolucion' }
+            datos: { allOf: [{ $ref: '#/components/schemas/DatosNota' }], nullable: true }
+            intentos: { type: integer }
+            ultimoError: { type: string, nullable: true }
+            correo: { $ref: '#/components/schemas/EnvioCorreo' }
+            creadoPor: { type: string }
+            creadaEn: { type: string, format: date-time }
+            emitidaEn: { type: string, format: date-time, nullable: true }
+    LineaNota:
+      type: object
+      required: [descripcion, cantidad, precio]
+      properties:
+        descripcion: { type: string }
+        cantidad: { type: integer, minimum: 1 }
+        precio: { type: integer, description: 'Con impuesto incluido, como en la carta' }
+    SolicitudNotaAnulacion:
+      type: object
+      required: [tipo, concepto, motivo]
+      properties:
+        tipo: { type: string, enum: [credito] }
+        concepto: { type: string, enum: [anulacion] }
+        motivo: { type: string }
+    SolicitudNotaCredito:
+      type: object
+      required: [tipo, concepto, motivo, lineas]
+      properties:
+        tipo: { type: string, enum: [credito] }
+        concepto: { type: string, enum: [devolucion_parcial, rebaja, ajuste_precio] }
+        motivo: { type: string }
+        lineas:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/LineaNota' }
+    SolicitudNotaDebito:
+      type: object
+      required: [tipo, concepto, motivo, lineas, medio]
+      properties:
+        tipo: { type: string, enum: [debito] }
+        concepto: { $ref: '#/components/schemas/ConceptoNotaDebito' }
+        motivo: { type: string }
+        lineas:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/LineaNota' }
+        medio: { $ref: '#/components/schemas/MedioPago' }
+    SolicitudNotaNueva:
+      oneOf:
+        - $ref: '#/components/schemas/SolicitudNotaAnulacion'
+        - $ref: '#/components/schemas/SolicitudNotaCredito'
+        - $ref: '#/components/schemas/SolicitudNotaDebito'
+    SolicitudLineas:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productoId, cantidad, nota]
+            properties:
+              productoId: { type: string }
+              cantidad: { type: integer, minimum: 1 }
+              nota: { type: string, nullable: true }
+    SolicitudIdsLineas:
+      type: object
+      required: [lineaIds]
+      properties:
+        lineaIds:
+          type: array
+          minItems: 1
+          items: { type: string }
+    SolicitudMotivoLineas:
+      type: object
+      required: [lineaIds, motivo]
+      properties:
+        lineaIds:
+          type: array
+          minItems: 1
+          items: { type: string }
+        motivo: { type: string }
+    SolicitudEstadoLinea:
+      type: object
+      required: [estado]
+      properties:
+        estado: { type: string, enum: [en_preparacion, lista, entregada] }
+    SolicitudDivision:
+      type: object
+      required: [partes]
+      properties:
+        partes: { type: integer, minimum: 2, maximum: 20 }
+    SolicitudPago:
+      type: object
+      required: [destino, propinaPorcentaje, comprador, medio]
+      properties:
+        destino: { $ref: '#/components/schemas/DestinoPago' }
+        propinaPorcentaje: { type: integer, minimum: 0, maximum: 100, description: 'Obligatorio: la propina es voluntaria y nunca se asume' }
+        comprador: { $ref: '#/components/schemas/Comprador' }
+        medio: { $ref: '#/components/schemas/MedioPago' }
+    SolicitudCorreo:
+      type: object
+      required: [correo]
+      properties:
+        correo: { type: string }
+    SolicitudReintentoFactura:
+      type: object
+      required: [comprador]
+      properties:
+        comprador: { allOf: [{ $ref: '#/components/schemas/Comprador' }], nullable: true }
+    ErrorApi:
+      type: object
+      required: [codigo, mensaje]
+      properties:
+        codigo: { $ref: '#/components/schemas/CodigoError' }
+        mensaje: { type: string }
