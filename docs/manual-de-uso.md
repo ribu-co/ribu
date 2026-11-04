@@ -128,7 +128,7 @@ Un pago duplicado no cuenta como venta. Sin datos, muestra un mensaje y no un ce
 
 **Productos.** **Nuevo producto**, editar y borrar. **Marcar agotado** saca un plato de la carta en el momento. El precio se escribe con impuesto incluido. Si lleva conteo, el stock baja solo al confirmar un pedido, y en 0 queda agotado.
 
-**Personal.** **Crear cuenta** con nombre, correo, rol y clave inicial, que se comparte por privado. **Desactivar** le quita el acceso de una vez.
+**Personal.** **Nueva cuenta** con nombre, correo, rol y clave inicial, que se comparte por privado. **Desactivar** le quita el acceso de una vez.
 
 **Facturas.** Cada pago con su factura. El filtro **Por resolver** deja lo que necesita atención.
 

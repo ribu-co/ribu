@@ -37,12 +37,16 @@ VITE_FUENTE=memoria npm run dev
 
 Abre la dirección que muestra Vite. Esta versión usa datos en memoria y un simulador, sin llamar a ninguna API.
 
-Para el backend real, copia `.env.example` a `.env`, pon las credenciales del sandbox y usa `npm run emuladores`. Las pruebas corren con `npm run verificar`, `npm run test:reglas` y `npm run test:flujo`. Las credenciales nunca van en el repositorio: en producción están en Secret Manager.
+Para el backend en local, usa `npm run emuladores`: corre con mocks y no necesita credenciales. Las pruebas corren con `npm run verificar`, `npm run test:reglas` y `npm run test:flujo`. `.env.example` lista las variables de las APIs. Las credenciales nunca van en el repositorio: en producción están en Secret Manager. Para publicar, ver [Despliegue](docs/despliegue.md).
 
 ## Documentación
 
 - [Explicación de la integración](docs/explicacion-integracion.md)
+- [Arquitectura](docs/arquitectura.md)
+- [Manual de uso](docs/manual-de-uso.md)
+- [Despliegue](docs/despliegue.md)
 - [Contratos y reglas de negocio](contratos/README.md)
 - [Casos de prueba](docs/casos-de-prueba.md)
+- [Datos de la demo](docs/datos-demo.md)
 - [Reglas de trabajo y datos de las APIs](AGENTS.md)
 - [Créditos de las fotos](https://ribu-co.web.app/creditos)
