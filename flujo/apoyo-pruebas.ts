@@ -126,7 +126,7 @@ export function crearEscenario() {
       new Request(`https://ribu.test${ruta}`, {
         method: metodo,
         headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), 'content-type': 'application/json', ...cabeceras },
-        ...(cuerpo === undefined ? {} : { body: typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo) }),
+        ...(cuerpo === undefined || metodo === 'GET' ? {} : { body: typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo) }),
       }),
     )
     const tipo = respuesta.headers.get('content-type') ?? ''
@@ -160,7 +160,7 @@ export function crearEscenario() {
   }
 
   const pagar = (destino: unknown, opciones: { medio?: string; propina?: number; token?: string; mesa?: string; comprador?: Comprador } = {}) =>
-    pedir<PagoDoc>('POST', `/api/mesas/${opciones.mesa ?? MESA_1}/pagos`, opciones.token ?? quien.cliente(), {
+    pedir('POST', `/api/mesas/${opciones.mesa ?? MESA_1}/pagos`, opciones.token ?? quien.cliente(), {
       destino,
       propinaPorcentaje: opciones.propina ?? 0,
       comprador: opciones.comprador ?? FINAL,
@@ -185,7 +185,7 @@ export function crearEscenario() {
     cobros.marcarPagado(creado.datos.id)
     await avisoDePago(creado.datos.id)
     await emitirFactura(creado.datos.id)
-    return creado.datos
+    return creado.datos as PagoDoc
   }
 
   return {
