@@ -2,13 +2,20 @@
 // el backend con calcularTotales; aquí solo se elige qué mostrar.
 
 import { lineaSuma, MONTO_MINIMO_COBRO, PROPINA_SUGERIDA_MAXIMA, propinaValida, repartirPartesIguales, unidadesPorCubrir } from '../../../contratos/reglas'
-import type { Cuenta, EstadoFactura, EstadoPago, LineaPedido, ResumenPago } from '../../../contratos/tipos'
+import type { Cuenta, EnvioCorreo, EstadoFactura, EstadoPago, LineaPedido, ResumenPago } from '../../../contratos/tipos'
 
 export const cobrosActivos = (cuenta: Cuenta) => cuenta.pagos.filter((p) => p.estado === 'esperando_pago')
 
 export const miCobroActivo = (cuenta: Cuenta, uid: string) => cobrosActivos(cuenta).find((p) => p.creadoPor === uid) ?? null
 
 export const cobrosAjenos = (cuenta: Cuenta, uid: string) => cobrosActivos(cuenta).filter((p) => p.creadoPor !== uid)
+
+/**
+ * Quien generó un cobro puede irse sin pagar, y su QR sigue reservando la cuenta. Por eso los demás
+ * de la mesa también consultan esos cobros: al vencer, lo que cubrían vuelve a quedar por pagar.
+ */
+export const consultarCobros = (verificar: (pagoId: string) => Promise<unknown>, pagos: readonly Pick<ResumenPago, 'id'>[]) =>
+  Promise.allSettled(pagos.map((p) => verificar(p.id)))
 
 /** Todo lo confirmado ya está pagado: la página no ofrece pagar. */
 export const todoPagado = (cuenta: Cuenta) => cuenta.consumo > 0 && cuenta.porPagar === 0 && cuenta.enCobro === 0
@@ -34,6 +41,14 @@ export const FACTURA_EN_CAMINO: Record<Exclude<EstadoFactura, 'emitida'>, string
   en_proceso: 'Estamos emitiendo tu factura electrónica.',
   en_validacion: 'La DIAN está validando tu factura. Puede tardar unos minutos y se reintenta sola.',
   rechazada: 'La DIAN pidió corregir un dato. El restaurante lo revisa y te llega la factura.',
+}
+
+/** Qué decirle a quien pagó sobre el correo de su factura. Un envío fallido nunca se muestra como enviado. */
+export function etiquetaCorreo(correo: Pick<EnvioCorreo, 'estado' | 'destino'>): string {
+  if (correo.estado === 'enviado') return `Enviada a ${correo.destino}`
+  if (correo.estado === 'pendiente') return `Enviándola a ${correo.destino}`
+  if (correo.estado === 'fallido') return `No pudimos enviarla a ${correo.destino}. Prueba con otro correo o descarga el PDF.`
+  return 'Envíala a tu correo'
 }
 
 /** Los porcentajes que se ofrecen como botones. El 0 va aparte, como "Sin propina". */

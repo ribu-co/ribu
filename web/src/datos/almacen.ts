@@ -13,7 +13,7 @@ const leerJson = <T,>(almacen: Storage, clave: string): T | null => {
   }
 }
 
-export function almacenCompartido(clave = 'ribu:memoria:v2', almacen: Storage = localStorage): Almacen {
+export function almacenCompartido(clave = 'ribu:memoria:v3', almacen: Storage = localStorage): Almacen {
   return {
     leer: () => leerJson<EstadoMemoria>(almacen, clave),
     guardar: (estado) => almacen.setItem(clave, JSON.stringify(estado)),

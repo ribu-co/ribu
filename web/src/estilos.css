@@ -1,4 +1,4 @@
-/* Ribu: rojo sólido #FF2525, tarjetas blancas y jerarquía tipográfica para lo que hay que mirar. */
+/* Ribu: rojo sólido #CF1B1B (4,5:1 o más con el blanco, el fondo y el rojo suave), tarjetas blancas y jerarquía tipográfica para lo que hay que mirar. */
 
 :root {
   --fondo: #f6f3f1;
@@ -9,7 +9,7 @@
   --tinta-3: #9a8c8c;
   --borde: #eadfdf;
 
-  --marca: #ff2525;
+  --marca: #cf1b1b;
   --marca-suave: #ffe4e2;
 
   --verde-950: #0a2a1a;
@@ -112,6 +112,11 @@ ul {
 }
 
 .pagina--mesa,
+.inicio__personal {
+  margin-top: 16px;
+  width: 100%;
+}
+
 .pagina--inicio {
   max-width: var(--ancho-mesa);
 }

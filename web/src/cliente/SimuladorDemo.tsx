@@ -10,6 +10,8 @@ const RESPUESTAS: { valor: ReturnType<Simulador['respuestaDian']>; texto: string
 
 /** Solo aparece con la versión en memoria: hace de banco y de DIAN. Con Firebase no existe. */
 export function SimuladorDemo({ referencia }: { referencia: string }) {
+  // Vite reemplaza PROD al compilar: en la build de producción, todo lo de abajo desaparece.
+  if (import.meta.env.PROD) return null
   const { simulador } = usarFuente()
   const [respuesta, setRespuesta] = useState(() => simulador?.respuestaDian() ?? 'emitida')
   if (!simulador) return null

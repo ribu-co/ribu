@@ -204,6 +204,15 @@ describe('mesa', () => {
 })
 
 describe('pago con Factus Pay', () => {
+  test('el QR vencido de otra persona deja de reservar la cuenta cuando alguien de la mesa consulta', async () => {
+    const cuenta = await pedidoDemoConfirmado()
+    const pago = await cliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' }))
+    expect(otroCliente.estado().cuentas[cuenta.id]?.porPagar).toBe(0)
+    mundo.avanzar(COBRO_EXPIRACION_SEGUNDOS + 1)
+    expect((await otroCliente.verificarPago(MESA, pago.id)).estado).toBe('vencido')
+    expect(otroCliente.estado().cuentas[cuenta.id]?.porPagar).toBe(cuenta.porPagar)
+  })
+
   test('la propina sale de calcularPropina y el cobro tiene el monto exacto', async () => {
     await pedidoDemoConfirmado()
     const pago = await cliente.crearPago(MESA, pagoCliente({ tipo: 'saldo' }, 10))

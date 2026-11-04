@@ -11,6 +11,7 @@ import {
   MONTO_MINIMO_COBRO,
   PARTES_MAXIMAS,
   PARTES_MINIMAS,
+  PROPINA_SUGERIDA_MAXIMA,
   propinaValida,
   puedeLiberarMesa,
   puedePasar,
@@ -19,6 +20,7 @@ import {
   TRANSICIONES_LINEA,
   unidadesPorCubrir,
 } from '../../../contratos/reglas'
+import { ROLES_PERSONAL as ROLES_DE_PERSONAL, TIPOS_IMPUESTO } from '../../../contratos/tipos'
 import type {
   Cobro,
   Comprador,
@@ -32,6 +34,7 @@ import type {
   Mesa,
   Nota,
   Pago,
+  Personal,
   Producto,
   Restaurante,
   ResumenPago,
@@ -239,6 +242,21 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     const actual = requerirSesion()
     if (!roles.includes(actual.rol) || actual.restauranteId !== restauranteId) fallar('SIN_PERMISO')
     return actual
+  }
+
+  /** Lo que el personal lee de su restaurante, y la plataforma de cualquiera. */
+  function requerirLectura(restauranteId: string, roles: readonly Rol[] = ROLES_PERSONAL) {
+    const actual = requerirSesion()
+    return actual.rol === 'plataforma' ? actual : requerirPersonal(restauranteId, roles)
+  }
+
+  const requerirPlataforma = () => {
+    const actual = requerirSesion()
+    return actual.rol === 'plataforma' ? actual : fallar('SIN_PERMISO', 'Solo quien administra Ribu')
+  }
+
+  const requerirActivo = (restauranteId: string) => {
+    if (!restaurante(restauranteId).activo) fallar('RESTAURANTE_INACTIVO')
   }
 
   const restauranteDelPersonal = () => {
@@ -592,7 +610,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
       return structuredClone(nueva)
     },
     async entrarPersonal(correo, clave) {
-      const persona = estado.personal.find((p) => p.correo === correo.trim().toLowerCase() && p.clave === clave)
+      const persona = estado.personal.find((p) => p.activo && p.correo === correo.trim().toLowerCase() && p.clave === clave)
       if (!persona) return fallar('NO_AUTORIZADO', 'Correo o clave incorrectos')
       const nueva: Sesion = { uid: persona.uid, rol: persona.rol, restauranteId: persona.restauranteId, nombre: persona.nombre }
       cambiarSesion(nueva)
@@ -604,17 +622,38 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
 
     // Lecturas
 
-    escucharMesa: (token, alCambiar, alFallar) => escuchar(() => estado.mesas[token] ?? null, alCambiar, alFallar),
-    escucharRestaurante: (id, alCambiar, alFallar) => escuchar(() => estado.restaurantes[id] ?? null, alCambiar, alFallar),
+    // Como en Firestore, nada se lee sin sesión.
+    escucharMesa: (token, alCambiar, alFallar) =>
+      escuchar(
+        () => {
+          requerirSesion()
+          return estado.mesas[token] ?? null
+        },
+        alCambiar,
+        alFallar,
+      ),
+    escucharRestaurante: (id, alCambiar, alFallar) =>
+      escuchar(
+        () => {
+          requerirSesion()
+          return estado.restaurantes[id] ?? null
+        },
+        alCambiar,
+        alFallar,
+      ),
     escucharProductos: (restauranteId, alCambiar, alFallar) =>
       escuchar(
-        () => Object.values(estado.productos).filter((p) => p.restauranteId === restauranteId),
+        () => {
+          requerirSesion()
+          return Object.values(estado.productos).filter((p) => p.restauranteId === restauranteId)
+        },
         alCambiar,
         alFallar,
       ),
     escucharCuenta: (restauranteId, cuentaId, alCambiar, alFallar) =>
       escuchar(
         () => {
+          requerirSesion()
           const cuenta = estado.cuentas[cuentaId]
           return cuenta?.restauranteId === restauranteId ? cuenta : null
         },
@@ -624,6 +663,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     escucharPago: (restauranteId, pagoId, alCambiar, alFallar) =>
       escuchar(
         () => {
+          requerirSesion()
           const pago = estado.pagos[pagoId]
           return pago?.restauranteId === restauranteId ? pago : null
         },
@@ -635,7 +675,9 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         () => {
           const factura = estado.facturas[pagoId]
           if (!factura || factura.restauranteId !== restauranteId) return null
-          return puedeVerFactura(factura) ? factura : fallar('SIN_PERMISO', 'Solo quien pagó ve su factura')
+          return requerirSesion().rol === 'plataforma' || puedeVerFactura(factura)
+            ? factura
+            : fallar('SIN_PERMISO', 'Solo quien pagó ve su factura')
         },
         alCambiar,
         alFallar,
@@ -643,7 +685,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     escucharMesas: (restauranteId, alCambiar, alFallar) =>
       escuchar(
         () => {
-          requerirPersonal(restauranteId)
+          requerirLectura(restauranteId)
           return Object.values(estado.mesas)
             .filter((m) => m.restauranteId === restauranteId)
             .sort((a, b) => a.numero - b.numero)
@@ -654,7 +696,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     escucharCuentasAbiertas: (restauranteId, alCambiar, alFallar) =>
       escuchar(
         () => {
-          requerirPersonal(restauranteId)
+          requerirLectura(restauranteId)
           return Object.values(estado.cuentas).filter((c) => c.restauranteId === restauranteId && c.estado !== 'cerrada')
         },
         alCambiar,
@@ -663,7 +705,8 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     escucharPagos: (restauranteId, alCambiar, alFallar) =>
       escuchar(
         () => {
-          requerirPersonal(restauranteId)
+          // Se pueden leer de a uno con su id, pero solo el administrador y la plataforma los listan.
+          requerirLectura(restauranteId, ['admin'])
           return Object.values(estado.pagos)
             .filter((p) => p.restauranteId === restauranteId)
             .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn))
@@ -674,7 +717,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     escucharFacturas: (restauranteId, alCambiar, alFallar) =>
       escuchar(
         () => {
-          requerirPersonal(restauranteId)
+          requerirLectura(restauranteId, ['admin'])
           return Object.values(estado.facturas).filter((f) => f.restauranteId === restauranteId)
         },
         alCambiar,
@@ -683,10 +726,28 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
     escucharNotas: (restauranteId, alCambiar, alFallar) =>
       escuchar(
         () => {
-          requerirPersonal(restauranteId, ['admin'])
+          requerirLectura(restauranteId, ['admin'])
           return Object.values(estado.notas)
             .filter((n) => n.restauranteId === restauranteId)
             .sort((a, b) => b.creadaEn.localeCompare(a.creadaEn))
+        },
+        alCambiar,
+        alFallar,
+      ),
+    escucharPersonal: (restauranteId, alCambiar, alFallar) =>
+      escuchar(
+        () => {
+          requerirLectura(restauranteId, ['admin'])
+          return personalDe(restauranteId)
+        },
+        alCambiar,
+        alFallar,
+      ),
+    escucharRestaurantes: (alCambiar, alFallar) =>
+      escuchar(
+        () => {
+          requerirPlataforma()
+          return Object.values(estado.restaurantes).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
         },
         alCambiar,
         alFallar,
@@ -701,6 +762,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         const delPersonal = esPersonal(actual)
         if (delPersonal) requerirPersonal(mesa.restauranteId, ['mesero', 'admin'])
         else if (actual.rol !== 'cliente') fallar('SIN_PERMISO')
+        requerirActivo(mesa.restauranteId)
         const items = solicitud?.items
         if (!Array.isArray(items) || items.length === 0) return fallar('CUERPO_INVALIDO', 'El pedido está vacío')
 
@@ -889,6 +951,7 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         const { destino, propinaPorcentaje, comprador, medio } = solicitud ?? {}
         if (!destino || !comprador || !medio) return fallar('CUERPO_INVALIDO')
         if (medio !== 'factus_pay') requerirPersonal(mesa.restauranteId, ['mesero', 'admin'])
+        requerirActivo(mesa.restauranteId)
         if (!propinaValida(propinaPorcentaje)) fallar('PROPINA_INVALIDA', 'La propina es un porcentaje entero de 0 a 100')
         if (!compradorValido(comprador)) fallar('COMPRADOR_INVALIDO', 'Revisa los datos de la factura')
         const { impuesto } = restaurante(mesa.restauranteId)
@@ -1070,6 +1133,83 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         return mesa
       }),
 
+    // Plataforma
+
+    crearRestaurante: (nuevo) =>
+      orden(() => {
+        requerirPlataforma()
+        validarRestaurante(nuevo)
+        if (!Number.isInteger(nuevo.mesas) || nuevo.mesas < 1) fallar('CUERPO_INVALIDO', 'Debe tener al menos una mesa')
+        estado.secuencia += 1
+        const creado: Restaurante = {
+          id: `${aSlug(nuevo.nombre) || 'restaurante'}-${estado.secuencia}`,
+          nombre: nuevo.nombre.trim(),
+          impuesto: { ...nuevo.impuesto },
+          propinasSugeridas: [...nuevo.propinasSugeridas],
+          activo: true,
+        }
+        estado.restaurantes[creado.id] = creado
+        return { restaurante: creado, mesas: crearMesas(creado.id, nuevo.mesas) }
+      }),
+
+    actualizarRestaurante: (restauranteId, cambios) =>
+      orden(() => {
+        const actual = restaurante(restauranteId)
+        requerirLectura(restauranteId, ['admin'])
+        if (requerirSesion().rol !== 'plataforma' && cambios?.activo !== undefined) {
+          fallar('SIN_PERMISO', 'Solo la plataforma activa o desactiva un restaurante')
+        }
+        const nuevo: Restaurante = { ...actual, ...cambios, id: actual.id }
+        validarRestaurante(nuevo)
+        estado.restaurantes[restauranteId] = nuevo
+        return nuevo
+      }),
+
+    agregarMesas: (restauranteId, solicitud) =>
+      orden(() => {
+        restaurante(restauranteId)
+        requerirLectura(restauranteId, ['admin'])
+        const cantidad = solicitud?.cantidad
+        if (!Number.isInteger(cantidad) || cantidad < 1) return fallar('CUERPO_INVALIDO', 'Debe ser al menos una mesa')
+        return crearMesas(restauranteId, cantidad)
+      }),
+
+    crearPersonal: (restauranteId, nuevo) =>
+      orden(() => {
+        restaurante(restauranteId)
+        requerirLectura(restauranteId, ['admin'])
+        const correo = nuevo?.correo?.trim().toLowerCase() ?? ''
+        if (!correoValido(correo) || !nuevo.nombre?.trim() || !ROLES_DE_PERSONAL.includes(nuevo.rol)) {
+          fallar('CUERPO_INVALIDO', 'Revisa el correo, el nombre y el rol')
+        }
+        validarClave(nuevo.clave)
+        if (estado.personal.some((p) => p.correo === correo)) fallar('CORREO_EN_USO')
+        const persona: PersonaPersonal = {
+          uid: `personal-${aleatorio(12)}`,
+          correo,
+          clave: nuevo.clave,
+          rol: nuevo.rol,
+          nombre: nuevo.nombre.trim(),
+          restauranteId,
+          activo: true,
+          creadoEn: fecha(),
+        }
+        estado.personal.push(persona)
+        return aPersonal(persona)
+      }),
+
+    actualizarPersonal: (restauranteId, uid, cambios) =>
+      orden(() => {
+        restaurante(restauranteId)
+        requerirLectura(restauranteId, ['admin'])
+        const persona = estado.personal.find((p) => p.uid === uid && p.restauranteId === restauranteId) ?? fallar('NO_ENCONTRADO')
+        if (cambios?.rol !== undefined && !ROLES_DE_PERSONAL.includes(cambios.rol)) fallar('CUERPO_INVALIDO', 'Ese rol no existe')
+        if (cambios?.nombre !== undefined && !cambios.nombre.trim()) fallar('CUERPO_INVALIDO', 'Falta el nombre')
+        if (cambios?.clave !== undefined) validarClave(cambios.clave)
+        Object.assign(persona, cambios)
+        return aPersonal(persona)
+      }),
+
     // Carta
 
     crearProducto: (nuevo) =>
@@ -1237,6 +1377,47 @@ export function crearFuenteMemoria(opciones: OpcionesMemoria = {}): FuenteDatos 
         'Documento de prueba generado en memoria',
       ])
     },
+  }
+
+  function crearMesas(restauranteId: string, cantidad: number): Mesa[] {
+    const ultima = Math.max(0, ...Object.values(estado.mesas).filter((m) => m.restauranteId === restauranteId).map((m) => m.numero))
+    return Array.from({ length: cantidad }, (_, i) => {
+      const mesa: Mesa = { token: `mesa-${aleatorio(16)}`, restauranteId, numero: ultima + i + 1, estado: 'libre', cuentaId: null }
+      estado.mesas[mesa.token] = mesa
+      return mesa
+    })
+  }
+
+  /** La clave se queda en el estado interno: nunca sale en una lectura ni en una respuesta. */
+  function aPersonal(persona: PersonaPersonal): Personal {
+    const { uid, correo, nombre, rol, activo, creadoEn } = persona
+    return { uid, restauranteId: persona.restauranteId as string, correo, nombre, rol: rol as Personal['rol'], activo, creadoEn }
+  }
+
+  function personalDe(restauranteId: string) {
+    return estado.personal.filter((p) => p.restauranteId === restauranteId).map(aPersonal)
+  }
+
+  function validarRestaurante(datos: Pick<Restaurante, 'nombre' | 'impuesto' | 'propinasSugeridas'>) {
+    if (!datos?.nombre?.trim()) fallar('CUERPO_INVALIDO', 'Falta el nombre')
+    if (!TIPOS_IMPUESTO.includes(datos.impuesto?.tipo) || !(datos.impuesto?.porcentaje >= 0)) fallar('CUERPO_INVALIDO', 'Revisa el impuesto')
+    const propinas = datos.propinasSugeridas
+    if (!Array.isArray(propinas) || propinas.some((p) => !propinaValida(p) || p > PROPINA_SUGERIDA_MAXIMA)) {
+      fallar('CUERPO_INVALIDO', `Las propinas sugeridas no pueden pasar del ${PROPINA_SUGERIDA_MAXIMA} %`)
+    }
+  }
+
+  function validarClave(clave: unknown) {
+    if (typeof clave !== 'string' || clave.length < 8) fallar('CUERPO_INVALIDO', 'La clave necesita al menos 8 caracteres')
+  }
+
+  function aSlug(nombre: string) {
+    return nombre
+      .normalize('NFD')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
   }
 
   function bajarStock(producto: Producto, cantidad: number) {

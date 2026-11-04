@@ -1,8 +1,12 @@
-import { PaginaAdmin } from './admin/PaginaAdmin'
+import { lazy, Suspense } from 'react'
 import { PaginaMesa } from './cliente/PaginaMesa'
 import { Inicio } from './Inicio'
 import { coincidir, usarRuta } from './ruta'
-import { Vacio } from './ui/Estados'
+import { Cargando, Vacio } from './ui/Estados'
+
+// Quien llega por un sticker no descarga los paneles.
+const PaginaAdmin = lazy(() => import('./admin/PaginaAdmin').then((m) => ({ default: m.PaginaAdmin })))
+const PaginaPlataforma = lazy(() => import('./plataforma/PaginaPlataforma').then((m) => ({ default: m.PaginaPlataforma })))
 
 export function App() {
   const ruta = usarRuta()
@@ -10,9 +14,22 @@ export function App() {
   const mesa = coincidir('/m/:token', ruta)
   if (mesa) return <PaginaMesa key={mesa.token} token={mesa.token as string} />
   if (ruta === '/') return <Inicio />
-  if (coincidir('/admin', ruta)) return <PaginaAdmin />
+  if (coincidir('/plataforma', ruta)) {
+    return (
+      <Suspense fallback={<main className="pagina"><Cargando /></main>}>
+        <PaginaPlataforma />
+      </Suspense>
+    )
+  }
+
   const admin = coincidir('/admin/:restauranteId', ruta)
-  if (admin) return <PaginaAdmin key={admin.restauranteId} restauranteId={admin.restauranteId} />
+  if (admin || coincidir('/admin', ruta)) {
+    return (
+      <Suspense fallback={<main className="pagina"><Cargando /></main>}>
+        <PaginaAdmin key={admin?.restauranteId ?? ''} restauranteId={admin?.restauranteId ?? null} />
+      </Suspense>
+    )
+  }
 
   return (
     <main className="pagina">

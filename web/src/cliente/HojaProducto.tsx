@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import type { Producto } from '../../../contratos/tipos'
-import { encuadreFoto } from '../datos/semilla'
 import { Boton, Contador } from '../ui/Controles'
 import { pesos } from '../ui/formato'
 import { Hoja } from '../ui/Hoja'
@@ -44,14 +43,7 @@ export function HojaProducto({
         )
       }
     >
-      {mostrado?.imagenUrl && (
-        <img
-          className="hoja__foto"
-          src={mostrado.imagenUrl}
-          alt=""
-          style={{ objectPosition: encuadreFoto(mostrado.id) }}
-        />
-      )}
+      {mostrado?.imagenUrl && <img className="hoja__foto" src={mostrado.imagenUrl} alt="" />}
       {mostrado?.descripcion && <p className="hoja__texto">{mostrado.descripcion}</p>}
       <div className="campo campo--fila">
         <span className="campo__etiqueta">Cantidad</span>
