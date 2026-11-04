@@ -219,6 +219,36 @@ test('un 422 del sandbox trae { message, errors } y el mensaje incluye el detall
   expect(error.message).toBe('Factus Pay respondió 422: Error de validación: El monto debe estar entre 10000 y 12000000')
 })
 
+test('un 422 donde errors repite el message no lo escribe dos veces', async () => {
+  // Es el 422 real del sandbox para un monto fuera de rango.
+  const texto = 'The amount field must be at least 10000.'
+  const falso = fetchFalso(json({ message: texto, errors: { amount: [texto] } }, 422))
+  const error = (await cobros(falso.fetch)
+    .crearCobro({ ...solicitud, monto: 5_000 })
+    .catch((e: unknown) => e)) as ErrorIntegracion
+  expect(error.message).toBe(`Factus Pay respondió 422: ${texto}`)
+})
+
+test('un 422 con varios errores distintos los incluye todos, sin repetir', async () => {
+  const cuerpo = {
+    message: 'Error de validación',
+    errors: { amount: ['Monto muy bajo', 'Monto muy bajo'], reference_code: ['Referencia muy larga'] },
+  }
+  const falso = fetchFalso(json(cuerpo, 422))
+  const error = (await cobros(falso.fetch)
+    .crearCobro(solicitud)
+    .catch((e: unknown) => e)) as ErrorIntegracion
+  expect(error.message).toBe('Factus Pay respondió 422: Error de validación: Monto muy bajo: Referencia muy larga')
+})
+
+test('un 422 con errors y sin message muestra el detalle', async () => {
+  const falso = fetchFalso(json({ errors: { amount: ['Monto muy bajo'] } }, 422))
+  const error = (await cobros(falso.fetch)
+    .crearCobro(solicitud)
+    .catch((e: unknown) => e)) as ErrorIntegracion
+  expect(error.message).toBe('Factus Pay respondió 422: Monto muy bajo')
+})
+
 test('otro monto con la misma referencia responde 422 y no se reintenta', async () => {
   const falso = fetchFalso(
     json({ status: 'error', message: 'La referencia ya existe con un monto diferente.', data: null }, 422),
