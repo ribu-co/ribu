@@ -57,7 +57,7 @@ export function Pestanas<T extends string>({
           onClick={() => alCambiar(opcion.valor)}
         >
           {opcion.texto}
-          {opcion.insignia ? <span className="insignia">{opcion.insignia}</span> : null}
+          {opcion.insignia ? <span className="insignia" key={opcion.insignia}>{opcion.insignia}</span> : null}
         </button>
       ))}
     </div>

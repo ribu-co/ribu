@@ -124,3 +124,19 @@
     align-items: end;
   }
 }
+
+/* Mismo movimiento que la mesa: entra, se marca y responde. */
+
+.plataforma__restaurante,
+.plataforma__entrada,
+.plataforma__hero {
+  animation: aparecer 240ms var(--ease-out) both;
+}
+
+.plataforma__mesa {
+  animation: desvanecer 220ms var(--ease-out) both;
+}
+
+.plataforma__qr .qr {
+  animation: revelar 260ms var(--ease-out) both;
+}

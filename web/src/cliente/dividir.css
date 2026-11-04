@@ -21,9 +21,7 @@
   background: var(--superficie);
   border: 1.5px solid var(--borde);
   text-align: left;
-  transition:
-    transform 160ms var(--ease-out),
-    border-color 200ms ease;
+  transition: transform 160ms var(--ease-out);
 }
 
 .accion-dividir:active:not(:disabled) {
@@ -112,7 +110,11 @@
   background: var(--superficie-2);
   font-weight: 700;
   font-size: 0.875rem;
-  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.parte[data-estado='pagada'] .parte__numero,
+.parte[data-estado='en_cobro'] .parte__numero {
+  animation: marcar 200ms var(--ease-out);
 }
 
 .parte[data-estado='pagada'] .parte__numero {
@@ -121,8 +123,9 @@
 }
 
 .parte[data-estado='en_cobro'] .parte__numero {
-  background: var(--ambar-100);
-  color: var(--ambar-700);
+  background: var(--superficie);
+  border: 1.5px dashed var(--marca);
+  color: var(--marca);
 }
 
 .parte__texto {

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, test } from 'vitest'
-import type { Cuenta, Producto } from '../../../contratos/tipos'
+import type { Cuenta, Producto, Restaurante } from '../../../contratos/tipos'
 import { ProveedorDatos } from '../datos/contexto'
 import type { Sesion } from '../datos/fuente'
 import { crearFuenteMemoria } from '../datos/memoria'
@@ -59,10 +59,33 @@ test('la carta se muestra por categorías con precios de carta', () => {
   const html = pintar(null)
   expect(html).toContain('Fogón del Manglar')
   expect(html).toContain('Mesa 3')
+  expect(html).toContain('src="/restaurantes/fogon-del-manglar.jpg"')
+  expect(html).toContain('aria-label="Instagram"')
+  expect(html).toContain('Ubicación en Montería')
   for (const categoria of ['Entradas', 'Platos fuertes', 'Bebidas', 'Postres']) expect(html).toContain(categoria)
   expect(html).toContain('$32.400')
-  expect(html).toContain('¿Qué se te antoja hoy?')
-  expect(html).not.toContain('<img')
+  expect(html).toContain('src="/platos/mojarra-frita.jpg"')
+})
+
+test('la vitrina sale del restaurante y oculta lo que viene en null', () => {
+  const conVitrina = (vitrina: Restaurante['vitrina']) =>
+    renderToStaticMarkup(
+      <ProveedorDatos fuente={crearFuenteMemoria()}>
+        <VistaMesa mesa={mesa} restaurante={{ ...restaurante, vitrina }} productos={[]} cuenta={null} sesion={cliente} />
+      </ProveedorDatos>,
+    )
+  const sinEnlaces = conVitrina({ fotoUrl: '/otra.jpg', ubicacion: 'Lorica', mapaUrl: null, instagramUrl: null })
+  expect(sinEnlaces).toContain('src="/otra.jpg"')
+  expect(sinEnlaces).not.toContain('banner__icono')
+
+  const soloMapa = conVitrina({ fotoUrl: null, ubicacion: 'Lorica', mapaUrl: 'https://mapa.test/lorica', instagramUrl: 'javascript:alert(1)' })
+  expect(soloMapa).toContain('Ubicación en Lorica')
+  expect(soloMapa).not.toContain('Instagram')
+  expect(soloMapa).not.toContain('<img')
+
+  const sinVitrina = conVitrina(undefined)
+  expect(sinVitrina).toContain('Fogón del Manglar')
+  expect(sinVitrina).not.toContain('banner__icono')
 })
 
 test('un producto agotado se ve, pero no se puede pedir', () => {
@@ -107,7 +130,7 @@ test('el personal en el mismo link pide directo a cocina', () => {
 test('el esqueleto de carga usa las mismas piezas que la página real', () => {
   const esqueleto = renderToStaticMarkup(<EsqueletoMesa />)
   const real = pintar(null)
-  for (const clase of ['cabecera', 'marca__logo', 'pastilla', 'hero', 'pestanas__opcion', 'categorias__chip', 'producto__foto', 'producto__precio']) {
+  for (const clase of ['banner', 'banner__logo', 'banner__nombre', 'banner__mesa', 'banner__icono', 'pestanas__opcion', 'categorias__chip', 'producto__foto', 'producto__precio']) {
     expect(real).toContain(clase)
     expect(esqueleto).toContain(clase)
   }
