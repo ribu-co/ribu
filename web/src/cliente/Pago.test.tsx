@@ -110,7 +110,7 @@ test('un pago duplicado no se esconde: se explica la devolución', () => {
 test('un cobro vencido ofrece generar otro', () => {
   const html = detalle(pago({ estado: 'vencido' }))
   expect(html).toContain('El QR venció')
-  expect(html).toContain('No se cobró nada')
+  expect(html).toContain('no pagues de nuevo')
   expect(html).toContain('Generar otro cobro')
 })
 
@@ -178,4 +178,27 @@ test('el cobro de otra persona se ve, pero sin abrirlo', () => {
   expect(html).toContain('Alguien de la mesa está pagando $56.400')
   expect(html).toMatch(/<button class="pago-fila" disabled=""/)
   expect(html).toContain('Otra persona')
+})
+
+test('un QR vencido no asegura que no se cobró nada', () => {
+  const html = detalle(pago({ estado: 'vencido' }))
+  expect(html).not.toContain('No se cobró nada')
+  expect(html).toContain('no pagues de nuevo')
+})
+
+test('un correo que falló no aparece como enviado', () => {
+  const html = pintar(
+    <TarjetaFactura
+      token="demo-mesa-3"
+      pago={pago({ estado: 'pagado', estadoFactura: 'emitida' })}
+      factura={factura({
+        estado: 'emitida',
+        datos: { numero: 'SETP1', cufe: 'abc', qrUrl: 'https://dian.test/q', urlPublica: 'https://dian.test/p' },
+        correo: { estado: 'fallido', destino: 'ana@ejemplo.co', ultimoError: 'detalle interno', enviadoEn: null },
+      })}
+    />,
+  )
+  expect(html).toContain('No pudimos enviarla a ana@ejemplo.co')
+  expect(html).not.toContain('Enviada a')
+  expect(html).not.toContain('detalle interno')
 })

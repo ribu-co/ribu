@@ -1,7 +1,89 @@
 rules_version = '2';
+
+// Solo el backend escribe, con el SDK de administración, que no pasa por estas reglas.
+// La tabla de quién lee qué está en contratos/README.md.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
+    function sesion() {
+      return request.auth != null;
+    }
+
+    function rol() {
+      return request.auth.token.get('rol', 'cliente');
+    }
+
+    function restauranteDelToken() {
+      return request.auth.token.get('restauranteId', '');
+    }
+
+    function esPlataforma() {
+      return sesion() && rol() == 'plataforma';
+    }
+
+    // Los claims duran hasta una hora en el token: quitarle el acceso a alguien debe valer de una vez.
+    function personalVigente() {
+      let doc = /databases/$(database)/documents/restaurantes/$(restauranteDelToken())/personal/$(request.auth.uid);
+      return exists(doc) && get(doc).data.activo == true && get(doc).data.rol == rol();
+    }
+
+    function esPersonalDe(restauranteId) {
+      return sesion()
+        && restauranteDelToken() == restauranteId
+        && rol() in ['mesero', 'cocina', 'admin']
+        && personalVigente();
+    }
+
+    function gestiona(restauranteId) {
+      return esPlataforma() || (esPersonalDe(restauranteId) && rol() == 'admin');
+    }
+
+    // Quien tiene el link puede leer. Pero un restaurante nunca ve a otro, ni con un link ajeno.
+    function conLink(restauranteId) {
+      return sesion() && (restauranteDelToken() == '' || restauranteDelToken() == restauranteId);
+    }
+
+    match /mesas/{token} {
+      allow get: if resource == null ? sesion() : conLink(resource.data.restauranteId);
+      allow list: if esPlataforma() || esPersonalDe(resource.data.restauranteId);
+    }
+
+    match /restaurantes/{restauranteId} {
+      allow get: if sesion();
+      allow list: if esPlataforma();
+
+      match /personal/{uid} {
+        allow read: if gestiona(restauranteId);
+      }
+
+      match /productos/{productoId} {
+        allow read: if sesion();
+      }
+
+      match /cuentas/{cuentaId} {
+        allow get: if conLink(restauranteId);
+        allow list: if gestiona(restauranteId)
+          || (esPersonalDe(restauranteId) && resource.data.estado in ['abierta', 'pagada']);
+      }
+
+      match /pagos/{pagoId} {
+        allow get: if conLink(restauranteId);
+        allow list: if gestiona(restauranteId);
+      }
+
+      match /facturas/{pagoId} {
+        allow get: if esPlataforma()
+          || esPersonalDe(restauranteId)
+          || (sesion() && resource != null && resource.data.pagadorUid == request.auth.uid);
+        allow list: if gestiona(restauranteId);
+      }
+
+      match /notas/{notaId} {
+        allow read: if gestiona(restauranteId);
+      }
+    }
+
+    // `referencias` y todo lo demás son solo del backend.
+    match /{documento=**} {
       allow read, write: if false;
     }
   }

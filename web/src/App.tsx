@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { PaginaMesa } from './cliente/PaginaMesa'
 import { Inicio } from './Inicio'
 import { PaginaMesaMesero } from './personal/MesaDetalle'
@@ -5,7 +6,10 @@ import { PaginaCocina } from './personal/PaginaCocina'
 import { PaginaEntrada } from './personal/PaginaEntrada'
 import { PaginaMesero } from './personal/PaginaMesero'
 import { coincidir, usarRuta } from './ruta'
-import { Vacio } from './ui/Estados'
+import { Cargando, Vacio } from './ui/Estados'
+
+// Quien llega por un sticker no descarga el panel de la plataforma.
+const PaginaPlataforma = lazy(() => import('./plataforma/PaginaPlataforma').then((m) => ({ default: m.PaginaPlataforma })))
 
 export function App() {
   const ruta = usarRuta()
@@ -18,6 +22,13 @@ export function App() {
   const mesaDelMesero = coincidir('/mesero/:token', ruta)
   if (mesaDelMesero) return <PaginaMesaMesero key={mesaDelMesero.token} token={mesaDelMesero.token as string} />
   if (ruta === '/cocina') return <PaginaCocina />
+  if (coincidir('/plataforma', ruta)) {
+    return (
+      <Suspense fallback={<main className="pagina"><Cargando /></main>}>
+        <PaginaPlataforma />
+      </Suspense>
+    )
+  }
 
   return (
     <main className="pagina">

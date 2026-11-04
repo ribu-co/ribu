@@ -1,24 +1,31 @@
 // Lo que la web necesita del backend: escuchar documentos y dar las órdenes de openapi.yaml.
-// Las pantallas solo conocen esta interfaz; hoy la cumple `memoria.ts` y después la cumplirá Firebase.
+// Las pantallas solo conocen esta interfaz. La cumplen `firebase.ts` y, para desarrollar sin backend, `memoria.ts`.
 
 import { CODIGOS_ERROR } from '../../../contratos/tipos'
 import type {
+  CambiosPersonal,
   CambiosProducto,
+  CambiosRestaurante,
   CodigoError,
   Cuenta,
   Factura,
   Mesa,
   Nota,
+  NuevoPersonal,
   NuevoProducto,
+  NuevoRestaurante,
   Pago,
+  Personal,
   Producto,
   Restaurante,
+  RestauranteCreado,
   Rol,
   SolicitudCorreo,
   SolicitudDivision,
   SolicitudEstadoLinea,
   SolicitudIdsLineas,
   SolicitudLineas,
+  SolicitudMesas,
   SolicitudMotivoLineas,
   SolicitudNotaNueva,
   SolicitudPago,
@@ -77,6 +84,11 @@ export interface Lecturas {
   escucharPagos(restauranteId: string, alCambiar: AlCambiar<Pago[]>, alFallar: AlFallar): Cancelar
   escucharFacturas(restauranteId: string, alCambiar: AlCambiar<Factura[]>, alFallar: AlFallar): Cancelar
   escucharNotas(restauranteId: string, alCambiar: AlCambiar<Nota[]>, alFallar: AlFallar): Cancelar
+  /** Solo el administrador de ese restaurante y la plataforma. */
+  escucharPersonal(restauranteId: string, alCambiar: AlCambiar<Personal[]>, alFallar: AlFallar): Cancelar
+
+  // Solo la plataforma
+  escucharRestaurantes(alCambiar: AlCambiar<Restaurante[]>, alFallar: AlFallar): Cancelar
 }
 
 export interface Sesiones {
@@ -102,6 +114,11 @@ export interface Ordenes {
   enviarFacturaPorCorreo(token: string, pagoId: string, solicitud: SolicitudCorreo): Promise<Factura>
   reintentarFactura(token: string, pagoId: string, solicitud: SolicitudReintentoFactura): Promise<Factura>
   liberarMesa(token: string): Promise<Mesa>
+  crearRestaurante(restaurante: NuevoRestaurante): Promise<RestauranteCreado>
+  actualizarRestaurante(restauranteId: string, cambios: CambiosRestaurante): Promise<Restaurante>
+  agregarMesas(restauranteId: string, solicitud: SolicitudMesas): Promise<Mesa[]>
+  crearPersonal(restauranteId: string, personal: NuevoPersonal): Promise<Personal>
+  actualizarPersonal(restauranteId: string, uid: string, cambios: CambiosPersonal): Promise<Personal>
   crearProducto(producto: NuevoProducto): Promise<Producto>
   actualizarProducto(productoId: string, cambios: CambiosProducto): Promise<Producto>
   borrarProducto(productoId: string): Promise<void>

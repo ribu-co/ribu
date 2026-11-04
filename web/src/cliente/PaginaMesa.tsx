@@ -68,12 +68,13 @@ export function PaginaMesa({ token }: { token: string }) {
       </Marco>
     )
   }
-  if (sesion.estado === 'listo' && sesion.valor.rol === 'cocina') {
+  if (sesion.estado === 'listo' && (sesion.valor.rol === 'cocina' || sesion.valor.rol === 'plataforma')) {
+    const quien = sesion.valor.rol === 'cocina' ? 'la cocina' : 'la plataforma'
     return (
       <Marco>
-        <Vacio icono="mesa" titulo="Entraste como cocina" texto="La cocina no pide desde la mesa. Para pedir aquí, sal y entra como cliente o como mesero.">
+        <Vacio icono="mesa" titulo={`Entraste como ${sesion.valor.rol}`} texto={`Desde ${quien} no se pide en la mesa. Para pedir aquí, sal y entra como cliente o como mesero.`}>
           <Boton variante="secundario" onClick={() => void fuente.salir()}>
-            Salir de la cocina
+            Salir de {quien}
           </Boton>
         </Vacio>
       </Marco>
@@ -128,7 +129,7 @@ export function VistaMesa({
 }) {
   const fuente = usarFuente()
   const avisos = usarAvisos()
-  const [pagoAbierto, setPagoAbierto] = usarPagoAbierto(mesa.token)
+  const [pagoAbierto, setPagoAbierto] = usarPagoAbierto(mesa.token, mesa.cuentaId)
   const miCobro = cuenta ? miCobroActivo(cuenta, sesion.uid) : null
   const [pestana, setPestana] = useState<PestanaMesa>(pestanaInicial ?? (pagoAbierto || miCobro ? 'cuenta' : 'carta'))
   // El objetivo sigue montado mientras la hoja se cierra, para que no se vacíe en la animación.
@@ -160,7 +161,8 @@ export function VistaMesa({
   const [enviando, setEnviando] = useState(false)
   const [errorEnvio, setErrorEnvio] = useState<unknown>(null)
 
-  const esPersonal = sesion.rol !== 'cliente'
+  // Solo ellos piden por la mesa: `cocina` y `plataforma` ni siquiera llegan a esta vista desde PaginaMesa.
+  const esPersonal = sesion.rol === 'mesero' || sesion.rol === 'admin'
   const lineasActivas = cuenta?.lineas.filter((l) => l.estado !== 'rechazada' && l.estado !== 'anulada') ?? []
   const resumen = resumenLineas(cuenta?.lineas ?? [])
   const cuantos = unidades(borrador)
